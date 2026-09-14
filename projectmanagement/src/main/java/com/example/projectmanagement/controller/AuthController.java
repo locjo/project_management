@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.example.projectmanagement.dto.request.LoginRequest;
 import com.example.projectmanagement.dto.request.SendOtpRequest;
 import com.example.projectmanagement.dto.request.VerifyOtpRequest;
 import com.example.projectmanagement.dto.response.ApiResponse;
@@ -39,20 +38,7 @@ public class AuthController {
         this.jwtTokenProvider = jwtTokenProvider;
     }
 
-    @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-        AuthService.LoginResult result = authService.login(request.username(), request.password());
 
-        AuthResponse data = new AuthResponse(
-                result.accessToken(),
-                "Bearer",
-                new UserInfoResponse(result.user().id(), result.user().username(), result.user().role())
-        );
-
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, jwtTokenProvider.createRefreshTokenCookie(result.refreshToken()).toString())
-                .body(ApiResponse.success("Đăng nhập thành công", data));
-    }
 
     @PostMapping("/send-otp")
     public ResponseEntity<ApiResponse<OtpResponse>> sendOtp(@Valid @RequestBody SendOtpRequest request) {

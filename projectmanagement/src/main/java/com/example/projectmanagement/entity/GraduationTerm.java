@@ -1,16 +1,13 @@
 package com.example.projectmanagement.entity;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -20,12 +17,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "graduation_terms")
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@Table(name = "graduation_terms", indexes = {
+    @Index(name = "idx_active_end_date", columnList = "is_active, end_date")
+})
 public class GraduationTerm {
 
     @Id
@@ -55,8 +54,4 @@ public class GraduationTerm {
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
-
-    @OneToMany(mappedBy = "graduationTerm", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<Topic> topics = new ArrayList<>();
 }

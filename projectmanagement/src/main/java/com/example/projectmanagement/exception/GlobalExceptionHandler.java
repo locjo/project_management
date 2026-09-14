@@ -1,4 +1,4 @@
-package com.example.projectmanagement.controller;
+package com.example.projectmanagement.exception;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +16,12 @@ import com.example.projectmanagement.service.AuthServiceException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(AppException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAppException(AppException ex) {
+        return ResponseEntity.status(ex.getStatus())
+                .body(ApiResponse.error(ex.getMessage()));
+    }
+
     @ExceptionHandler(AuthServiceException.class)
     public ResponseEntity<ApiResponse<Void>> handleAuthServiceException(AuthServiceException ex) {
         return ResponseEntity.status(ex.getStatus())
@@ -32,5 +38,11 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error("Dữ liệu đầu vào không hợp lệ"));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Đã xảy ra lỗi hệ thống"));
     }
 }

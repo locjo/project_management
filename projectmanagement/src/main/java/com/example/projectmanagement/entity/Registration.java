@@ -1,7 +1,5 @@
 package com.example.projectmanagement.entity;
 
-import java.time.LocalDateTime;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -38,14 +36,19 @@ public class Registration {
     private Student student;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "topic_id", nullable = false)
+    @JoinColumn(name = "graduation_term_id", nullable = false)
+    private GraduationTerm graduationTerm;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lecturer_id", nullable = false)
+    private Lecturer lecturer;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "topic_id")
     private Topic topic;
 
-    @Column(name = "submission_date", nullable = false)
-    private LocalDateTime submissionDate;
-
-    @Column(name = "approved_date")
-    private LocalDateTime approvedDate;
+    @Column(nullable = false, length = 200)
+    private String title;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

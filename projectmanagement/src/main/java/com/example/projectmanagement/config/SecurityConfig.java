@@ -28,6 +28,9 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/api/graduation-terms/**").hasAnyRole("HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
+                .requestMatchers("/api/topics/**").hasAnyRole("STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
+                .requestMatchers("/api/registrations/**").hasAnyRole("STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(rateLimiterFilter, UsernamePasswordAuthenticationFilter.class)

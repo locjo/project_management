@@ -3,5 +3,6 @@ package com.example.projectmanagement.entity;
 public enum UserRole {
     STUDENT,
     LECTURER,
-    ADMIN
+    HEAD_OF_DEPARTMENT,
+    FACULTY_LEADER
 }
