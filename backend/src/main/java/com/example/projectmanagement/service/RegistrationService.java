@@ -74,6 +74,13 @@ public class RegistrationService {
     }
 
     @Transactional(readOnly = true)
+    public List<RegistrationResponse> getLecturerRegistrations(String username, Long graduationTermId) {
+        Lecturer lecturer = lecturerFor(username);
+        return registrations.findByLecturerIdAndGraduationTermIdOrderByIdDesc(lecturer.getId(), graduationTermId)
+                .stream().map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
     public List<RegistrationResponse> getPendingRegistrationsForLecturer(String username) {
         Lecturer lecturer = lecturerFor(username);
         return registrations.findByLecturerIdAndStatusOrderByIdDesc(lecturer.getId(), RegistrationStatus.PENDING).stream().map(this::toResponse).toList();
@@ -103,8 +110,11 @@ public class RegistrationService {
     private AppException notFound(String message) { return new AppException(message, HttpStatus.NOT_FOUND); }
     private AppException badRequest(String message) { return new AppException(message, HttpStatus.BAD_REQUEST); }
     private RegistrationResponse toResponse(Registration r) {
+        // Existing registrations may predate the optional category association.
+        TopicCategory category = r.getCategory();
         return new RegistrationResponse(r.getId(), r.getStudent().getId(), r.getStudent().getFullName(), r.getLecturer().getId(),
-                r.getLecturer().getUser().getUsername(), r.getGraduationTerm().getId(), r.getCategory().getId(), r.getCategory().getName(),
+                r.getLecturer().getUser().getUsername(), r.getGraduationTerm().getId(),
+                category == null ? null : category.getId(), category == null ? "Chưa phân loại" : category.getName(),
                 r.getTitle(), r.getStatus().name());
     }
 }

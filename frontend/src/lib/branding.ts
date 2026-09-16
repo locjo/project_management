@@ -1,0 +1,1 @@
+export const universityLogoUrl = "https://lh3.googleusercontent.com/aida/AEtjO1VvkF_GsOqlmlM9-bCEsV8MfmyDKlWKu-fSK5xDrfpGzVgesSVULgqGM0GH-6ytSd4QNwEHRrThX2TntMPK79j30fg1NvcYOhB-CuxuDE_KEhzI3ReKS4h-8FPk51fGUSxIFwZyv3_23kYD-lcios4QhdeRL58Rjv3m98JJE_YXOaUjj-ZbVN351IxKK88zyjMpfL4pU7yICuR2OGppRbRRNYiwLZ7U78AkCFze-1Vb3HO0nHNN7S2smRkM"

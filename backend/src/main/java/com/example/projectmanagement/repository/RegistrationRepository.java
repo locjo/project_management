@@ -14,6 +14,8 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
 
     List<Registration> findByLecturerIdOrderByIdDesc(Long lecturerId);
 
+    List<Registration> findByLecturerIdAndGraduationTermIdOrderByIdDesc(Long lecturerId, Long graduationTermId);
+
     List<Registration> findByLecturerIdAndStatusOrderByIdDesc(Long lecturerId, RegistrationStatus status);
 
     long countByLecturerIdAndStatus(Long lecturerId, RegistrationStatus status);

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.projectmanagement.dto.request.CreateRegistrationRequest;
@@ -56,6 +57,14 @@ public class RegistrationController {
                 "Lấy danh sách đăng ký chờ duyệt thành công",
                 registrationService.getPendingRegistrationsForLecturer(authentication.getName())
         ));
+    }
+
+    @GetMapping("/lecturer")
+    public ResponseEntity<ApiResponse<List<RegistrationResponse>>> getLecturerRegistrations(
+            Authentication authentication,
+            @RequestParam(name = "graduationTermId") Long graduationTermId) {
+        return ResponseEntity.ok(ApiResponse.success("Lấy danh sách sinh viên hướng dẫn thành công",
+                registrationService.getLecturerRegistrations(authentication.getName(), graduationTermId)));
     }
 
     @PutMapping("/{id}/status")

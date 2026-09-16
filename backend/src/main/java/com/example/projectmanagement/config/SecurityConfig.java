@@ -29,6 +29,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/lecturers").hasAnyRole("STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
                 .requestMatchers(HttpMethod.GET, "/api/graduation-terms/**").hasAnyRole("STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
                 .requestMatchers("/api/graduation-terms/**").hasAnyRole("HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
                 .requestMatchers(HttpMethod.GET, "/api/categories/**").hasAnyRole("STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
