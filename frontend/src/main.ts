@@ -10,6 +10,7 @@ import { topicService } from './service/topics'
 import { categoryService } from './service/categories'
 import { graduationTermService } from './service/graduation-terms'
 import { apiError } from './service/errors'
+import { getPortalTab, portalTabs } from './lib/portal-tabs'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 let disposeLogin: (() => void) | undefined
@@ -103,19 +104,42 @@ async function mutate(form: HTMLFormElement, action: (data: FormData) => Promise
   finally { delete form.dataset.pending; submit.disabled = false }
 }
 
+function syncPortalTab() {
+  const user = authStore.getState().user
+  if (!user) return
+  const tab = getPortalTab(user.role, portalStore.getState().activeTab)
+  const content = document.querySelector<HTMLElement>('#portal-content')
+  if (!content) return
+  const selected = tab.sections.map(id => document.getElementById(id)).filter((node): node is HTMLElement => Boolean(node))
+  content.querySelectorAll<HTMLElement>(':scope > [id], :scope > #topics > section[id], :scope > #registrations > section[id]').forEach(panel => {
+    panel.hidden = !selected.some(node => panel === node || panel.contains(node) || node.contains(panel))
+  })
+  app.querySelectorAll<HTMLElement>('[data-path]').forEach(link => {
+    const active = link.dataset.path === tab.path
+    if (active) link.setAttribute('aria-current', 'page')
+    else link.removeAttribute('aria-current')
+    if (link.closest('[data-component="sidebar"]') && !link.classList.contains('text-error')) {
+      for (const name of ['bg-primary/10', 'text-primary', 'font-semibold']) link.classList.toggle(name, active)
+      link.classList.toggle('text-on-surface-variant', !active)
+    }
+  })
+  content.querySelectorAll<HTMLInputElement>('[data-topic-filter]').forEach(input => input.dispatchEvent(new Event('input')))
+}
+
 function setupPortal() {
   document.querySelector<HTMLSelectElement>('#term-select')!.onchange = event => {
     void portalStore.getState().load(Number((event.target as HTMLSelectElement).value))
   }
-  const search = document.querySelector<HTMLInputElement>('#topic-search')
-  if (search) search.oninput = () => {
+  document.querySelectorAll<HTMLInputElement>('[data-topic-filter]').forEach(search => { search.oninput = () => {
+    const list = search.closest<HTMLElement>('[data-topic-list]')!
     const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/gi, 'd').toLowerCase()
     let visible = 0
-    document.querySelectorAll<HTMLElement>('[data-topic-search]').forEach(card => {
-      card.hidden = !normalize(card.dataset.topicSearch!).includes(normalize(search.value)); if (!card.hidden) visible++
+    list.querySelectorAll<HTMLElement>('[data-topic-search]').forEach(card => {
+      card.hidden = !normalize(card.dataset.topicSearch!).includes(normalize(search.value))
+      if (!card.hidden && !card.parentElement?.closest('[hidden]')) visible++
     })
-    document.querySelector<HTMLElement>('#topic-no-results')!.hidden = visible > 0 || !search.value
-  }
+    list.querySelector<HTMLElement>('[data-topic-empty]')!.hidden = visible > 0 || !search.value
+  } })
   const registrationForm = document.querySelector<HTMLFormElement>('#registration-form')
   if (registrationForm) {
     registrationForm.querySelector<HTMLSelectElement>('[name="mode"]')!.onchange = event => {
@@ -140,13 +164,16 @@ function setupPortal() {
     const form = document.querySelector<HTMLFormElement>(`#${id}`)
     if (form) form.onsubmit = event => { event.preventDefault(); void mutate(form, action, success) }
   }
-  bind('topic-form', data => topicService.create({ graduationTermId: portalStore.getState().selectedTermId!, categoryId: Number(data.get('categoryId')), title: String(data.get('title')).trim(), description: String(data.get('description')).trim() }), 'Đã tạo đề tài.')
+  bind('topic-form', data => topicService.create({ graduationTermId: portalStore.getState().selectedTermId!, categoryId: Number(data.get('categoryId')), title: String(data.get('title')).trim(), description: String(data.get('description')).trim() }), 'Đề tài đã được gửi tới trưởng bộ môn và đang chờ phê duyệt.')
   bind('category-form', data => categoryService.create({ code: String(data.get('code')).trim(), name: String(data.get('name')).trim(), description: String(data.get('description')).trim(), isActive: true }), 'Đã thêm lĩnh vực.')
   bind('term-form', data => {
-    const startDate = String(data.get('startDate')), endDate = String(data.get('endDate')), registrationDeadline = String(data.get('registrationDeadline'))
-    if (startDate > endDate || registrationDeadline > startDate) throw new Error('Ngày kết thúc phải từ ngày bắt đầu trở đi; hạn đăng ký phải trước hoặc bằng ngày bắt đầu theo quy định backend.')
-    return graduationTermService.create({ code: String(data.get('code')).trim(), name: String(data.get('name')).trim(), academicYear: String(data.get('academicYear')).trim(), semester: String(data.get('semester')).trim(), startDate, endDate, registrationDeadline, isActive: true })
+    const startDate = String(data.get('startDate')), endDate = String(data.get('endDate'))
+    const registerDate = String(data.get('registerDate'))
+    if (startDate > endDate) throw new Error('Ngày kết thúc phải từ ngày bắt đầu trở đi.')
+    if (registerDate < startDate || registerDate > endDate) throw new Error('Hạn đăng ký phải từ ngày bắt đầu đến ngày kết thúc của đợt.')
+    return graduationTermService.create({ code: String(data.get('code')).trim(), name: String(data.get('name')).trim(), academicYear: String(data.get('academicYear')).trim(), semester: String(data.get('semester')).trim(), startDate, endDate, registerDate, isActive: true })
   }, 'Đã tạo đợt đồ án.')
+  syncPortalTab()
 }
 
 app.addEventListener('click', async event => {
@@ -155,23 +182,16 @@ app.addEventListener('click', async event => {
   if (target.tagName === 'A') event.preventDefault()
   if (target.dataset.action === 'reload') { void portalStore.getState().load(); return }
   const path = target.dataset.path
-  if (path === 'students-pending' || path === 'students-approved') {
-    document.getElementById(path)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const user = authStore.getState().user
+  if (path && user && portalTabs[user.role].some(tab => tab.path === path)) {
+    portalStore.getState().setActiveTab(path)
     return
   }
-  if (path === 'dang-xuat' || target.textContent?.trim() === 'Đăng xuất') {
+  if (path === 'dang-xuat') {
     if (target.dataset.pending) return
     target.dataset.pending = 'true'
     try { await authService.logout() } catch (error) { message('Không thể đăng xuất', apiError(error).message) }
     finally { delete target.dataset.pending }
-    return
-  }
-  const sections: Record<string, string> = { 'linh-vuc-de-tai': 'categories', 'giang-vien-huong-dan': 'lecturers', 'quan-ly-sinh-vien-hd': 'registrations', 'de-tai-cua-toi': 'topics', 'item-0': 'registration', 'item-1': 'registrations', 'item-3': 'terms' }
-  if (path === 'thong-ke-khoa') { window.scrollTo({ top: 0, behavior: 'smooth' }); return }
-  if (path && sections[path]) {
-    const section = document.getElementById(sections[path])
-    if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    else message('Thông tin', 'Mục này chưa có dữ liệu hoặc chưa được hỗ trợ cho vai trò hiện tại.')
     return
   }
   if (path === 'thiet-lap-tai-khoan') { message('Tài khoản', 'Backend hiện chưa cung cấp chức năng cập nhật tài khoản.'); return }
@@ -189,6 +209,15 @@ app.addEventListener('click', async event => {
     } catch (error) { message('Không thể cập nhật', apiError(error).message) }
     finally { buttons.forEach(button => { button.disabled = false }) }
   }
+  if (target.dataset.topicReview && (target.dataset.decision === 'APPROVED' || target.dataset.decision === 'REJECTED')) {
+    const buttons = target.parentElement!.querySelectorAll<HTMLButtonElement>('button')
+    buttons.forEach(button => { button.disabled = true })
+    try {
+      await topicService.review(Number(target.dataset.topicReview), target.dataset.decision)
+      await portalStore.getState().load()
+    } catch (error) { message('Không thể duyệt đề tài', apiError(error).message) }
+    finally { buttons.forEach(button => { button.disabled = false }) }
+  }
 })
 
 authStore.subscribe((state, previous) => {
@@ -199,6 +228,11 @@ authStore.subscribe((state, previous) => {
     if (state.user) void portalStore.getState().load()
   }
 })
-portalStore.subscribe(() => { if (authStore.getState().user) render() })
+portalStore.subscribe((state, previous) => {
+  if (!authStore.getState().user) return
+  // Switching tabs only hides panels, preserving unsent form inputs and focus.
+  if (state.activeTab !== previous.activeTab) syncPortalTab()
+  else render()
+})
 render()
 if (authStore.getState().user) void portalStore.getState().load()

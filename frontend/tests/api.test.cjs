@@ -135,8 +135,8 @@ test('a registration failure retains loaded terms and identifies the failing res
 
 test('student can choose a lecturer even when the term has no suggested topics', async () => {
   const h = harness(call => ({ data: call.url === '/graduation-terms/active'
-    ? [{ id: 2, name: 'Current term', active: true, startDate: '2026-01-01', endDate: '2099-12-31', registrationDeadline: '2099-12-01' }]
-    : call.url === '/lecturers' ? [{ lecturerId: 42, lecturerName: 'Available teacher', department: 'IT', academicDegree: null, maxStudents: 8, availableSlots: 6 }]
+    ? [{ id: 2, name: 'Current term', active: true, startDate: '2026-01-01', endDate: '2099-12-31', registerDate: '2099-12-31' }]
+    : call.url === '/lecturers' ? [{ lecturerId: 42, lecturerName: 'Available teacher', academicDegree: null, studentLimit: 5, availableSlots: 3 }]
       : [] })); h.session()
   const portal = h.load('stores/portal.ts').portalStore
   await portal.getState().load()
@@ -156,7 +156,7 @@ test('lecturer approval moves a student from pending to accepted and respects th
     { id: 12, studentName: 'Rejected student', title: 'Rejected thesis', categoryName: 'AI', graduationTermId: 2, status: 'REJECTED' },
   ]
   const h = harness(call => {
-    if (call.url === '/graduation-terms') return { data: [2, 3].map(id => ({ id, active: true, name: 'Term', startDate: '2026-01-01', endDate: '2099-01-01' })) }
+    if (call.url === '/graduation-terms') return { data: [2, 3].map(id => ({ id, active: true, name: 'Term', startDate: '2026-01-01', endDate: '2099-01-01', registerDate: '2099-01-01' })) }
     if (call.url === '/registrations/lecturer') return { data: records.filter(item => item.graduationTermId === call.params.graduationTermId) }
     if (call.url === '/registrations/10/status') { records[0].status = call.body.status; return { data: records[0] } }
     return { data: [] }
@@ -180,4 +180,118 @@ test('lecturer approval moves a student from pending to accepted and respects th
   await portal.getState().load(3)
   assert.equal(portal.getState().registrations.length, 0)
   assert.equal(h.requests.filter(r => r.url === '/registrations/lecturer').at(-1).params.graduationTermId, 3)
+})
+
+for (const role of ['HEAD_OF_DEPARTMENT', 'FACULTY_LEADER']) test(`${role} can load and approve pending topics`, async () => {
+  const topic = { id: 7, lecturerId: 3, title: 'Awaiting review', lecturerName: 'Teacher', categoryName: 'AI', status: 'PENDING', graduationTermId: 2 }
+  const h = harness(call => {
+    if (call.url === '/graduation-terms') return { data: [{ id: 2, active: true }] }
+    if (call.url === '/topics/department') return { data: [topic] }
+    if (call.url === '/topics') return { data: topic.status === 'APPROVED' ? [topic] : [] }
+    if (call.url === '/topics/7/review') { topic.status = call.body.status; return { data: topic } }
+    return { data: [] }
+  }); h.session(role)
+  const store = h.load('stores/portal.ts').portalStore
+  await store.getState().load()
+  assert.equal(store.getState().departmentTopics[0].status, 'PENDING')
+  assert.equal(store.getState().topics.length, 0)
+  const html = h.load('components/topic-approval.ts').renderTopicApproval(store.getState().departmentTopics, true)
+  assert.match(html, /data-topic-review="7" data-decision="APPROVED"/)
+  await h.load('service/topics.ts').topicService.review(7, 'APPROVED')
+  await store.getState().load()
+  assert.equal(store.getState().departmentTopics[0].status, 'APPROVED')
+  assert.ok(!h.requests.some(call => call.url === '/topics'))
+  assert.deepEqual(h.requests.find(r => r.url === '/topics/7/review').body, { status: 'APPROVED' })
+})
+
+test('lecturer sees their own pending topics without access to department review', async () => {
+  const h = harness(call => ({ data: call.url === '/graduation-terms' ? [{ id: 2, active: true }]
+    : call.url === '/topics/mine' ? [{ id: 7, status: 'PENDING', title: 'My proposal', lecturerName: 'Teacher', categoryName: 'AI' }] : [] }))
+  h.session('LECTURER')
+  const store = h.load('stores/portal.ts').portalStore
+  await store.getState().load()
+  assert.equal(store.getState().ownTopics[0].status, 'PENDING')
+  assert.equal(store.getState().topics.length, 0)
+  assert.ok(!h.requests.some(r => r.url === '/topics/pending'))
+  const html = h.load('components/topic-approval.ts').renderTopicApproval(store.getState().ownTopics, false)
+  assert.doesNotMatch(html, /data-topic-review/)
+})
+
+test('registration form is available only within an active term date range', () => {
+  const h = harness(() => ({ data: [] })); h.session()
+  const store = h.load('stores/portal.ts').portalStore
+  const render = h.load('pages/portal.ts').renderPortal
+  const term = { id: 2, name: 'Term', active: true, startDate: '2000-01-01', endDate: '2099-01-01', registerDate: '2099-01-01' }
+  for (const [changes, open] of [
+    [{}, true],
+    [{ registerDate: '2001-01-01' }, false],
+    [{ startDate: '2098-01-01' }, false],
+    [{ endDate: '2001-01-01', registerDate: '2001-01-01' }, false],
+    [{ active: false }, false],
+  ]) {
+    store.setState({ terms: [{ ...term, ...changes }], selectedTermId: 2, loading: false })
+    assert.equal(render(h.auth.getState().user).includes('id="registration-form"'), open)
+  }
+})
+
+test('tabs switch without fetching data and stay selected after reloading or changing terms', async () => {
+  const h = harness(call => ({ data: call.url === '/graduation-terms'
+    ? [2, 3].map(id => ({ id, active: true, name: 'Term', startDate: '2026-01-01', endDate: '2099-01-01', registerDate: '2099-01-01' })) : [] }))
+  h.session('HEAD_OF_DEPARTMENT')
+  const store = h.load('stores/portal.ts').portalStore
+  await store.getState().load(2)
+  const count = h.requests.length
+  store.getState().setActiveTab('topic-approval')
+  assert.equal(h.requests.length, count)
+  const state = store.getState()
+  store.getState().setActiveTab('topic-approval')
+  assert.equal(store.getState(), state)
+  await store.getState().load(3)
+  assert.equal(store.getState().activeTab, 'topic-approval')
+  const html = h.load('pages/portal.ts').renderPortal(h.auth.getState().user)
+  assert.match(html, /data-path="topic-approval" aria-current="page"/)
+  assert.doesNotMatch(html, /class="portal-tabs"/)
+  const { getPortalTab } = h.load('lib/portal-tabs.ts')
+  assert.equal(getPortalTab('HEAD_OF_DEPARTMENT', 'topic-approval').sections[0], 'topic-approval')
+  assert.equal(getPortalTab('STUDENT', 'topic-approval').path, 'item-0')
+  store.getState().reset()
+  assert.equal(store.getState().activeTab, null)
+})
+
+test('student defaults to an open registration term while preserving manual selections', async () => {
+  const terms = [
+    { id: 4, active: true, startDate: '2098-01-01', registerDate: '2099-01-01' },
+    { id: 2, active: true, startDate: '2000-01-01', registerDate: '2001-01-01' },
+    { id: 1, active: true, startDate: '2000-01-01', registerDate: '2099-01-01' },
+  ]
+  const h = harness(call => ({ data: call.url === '/graduation-terms/active' ? terms : [] })); h.session()
+  const store = h.load('stores/portal.ts').portalStore
+  await store.getState().load()
+  assert.equal(store.getState().selectedTermId, 1)
+  assert.equal(h.requests.find(call => call.url === '/topics').params.graduationTermId, 1)
+  await store.getState().load(4)
+  assert.equal(store.getState().selectedTermId, 4)
+  await store.getState().load()
+  assert.equal(store.getState().selectedTermId, 4)
+  store.getState().reset()
+  terms[2].active = false
+  await store.getState().load()
+  assert.equal(store.getState().selectedTermId, 4)
+})
+
+test('faculty sidebar has logout and review links; only faculty has the term creation form', async () => {
+  for (const role of ['FACULTY_LEADER', 'HEAD_OF_DEPARTMENT']) {
+    const h = harness(call => ({ data: call.url === '/graduation-terms'
+      ? [{ id: 2, active: true, name: 'Term', startDate: '2026-01-01', endDate: '2099-01-01', registerDate: '2099-01-01' }] : [] }))
+    h.session(role)
+    await h.load('stores/portal.ts').portalStore.getState().load()
+    const html = h.load('pages/portal.ts').renderPortal(h.auth.getState().user)
+    assert.match(html, /data-path="dang-xuat"/)
+    assert.match(html, /data-path="topic-approval"/)
+    assert.equal(html.includes('id="term-form"'), role === 'FACULTY_LEADER')
+    assert.equal(html.includes('data-path="item-3"'), role === 'FACULTY_LEADER')
+    await h.load('service/auth.ts').authService.logout()
+    assert.equal(h.auth.getState().user, null)
+    assert.ok(h.requests.some(call => call.url === '/auth/logout'))
+  }
 })

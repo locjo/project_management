@@ -36,7 +36,7 @@ export const portalLayouts: Record<PortalRole, { header: HeaderProps; sidebar: S
           "danger": false
         },
         {
-          "path": "item-4",
+          "path": "dang-xuat",
           "icon": "logout",
           "label": "Đăng xuất",
           "danger": true

@@ -67,6 +67,14 @@ table { min-width: 640px; }
 .api-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 16px; }
 .api-table th, .api-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8e7; }
 .api-table th { background: #f2f4f6; }
+.portal-content { display: grid; gap: 24px; }
+.sidebar-group summary { cursor: pointer; list-style: none; }
+.sidebar-group summary::-webkit-details-marker { display: none; }
+.sidebar-group summary:hover { background: #e8efed; }
+.sidebar-group-arrow { margin-left: auto; font-size: 18px; transition: transform .15s; }
+.sidebar-group:not([open]) .sidebar-group-arrow { transform: rotate(-90deg); }
+.sidebar-submenu { margin-left: 24px; padding-left: 8px; border-left: 1px solid #dce5e3; display: grid; gap: 4px; }
+.portal-content > #registrations:has(> section) { display: block; }
 @media (max-width: 767px) {
   .live-shell { display: block; }
   .live-shell > aside { position: static; display: flex; width: 100%; height: auto; max-height: 260px; }

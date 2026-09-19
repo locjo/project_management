@@ -3,6 +3,15 @@ import type { NavigationItem, SidebarProps } from '../types/layout'
 import { renderLogo } from './logo'
 
 function renderItem(item: NavigationItem, activePath?: string): string {
+  if (item.children?.length) {
+    return `<details class="sidebar-group" open>
+      <summary class="flex items-center gap-space-sm px-space-md py-2.5 rounded-xl text-body-sm font-semibold">
+        <span aria-hidden="true" class="material-symbols-outlined text-[20px]">${escapeHtml(item.icon)}</span><span>${escapeHtml(item.label)}</span>
+        <span aria-hidden="true" class="material-symbols-outlined sidebar-group-arrow">expand_more</span>
+      </summary>
+      <div class="sidebar-submenu">${item.children.map(child => renderItem(child, activePath)).join('')}</div>
+    </details>`
+  }
   const active = item.path === activePath
   const state = active ? 'bg-primary/10 text-primary font-semibold' : item.danger ? 'text-error hover:bg-error-container/20' : 'text-on-surface-variant hover:bg-surface-container-high'
   return `<a href="#" data-path="${escapeHtml(item.path)}" ${active ? 'aria-current="page"' : ''} class="flex items-center gap-space-sm px-space-md py-2.5 rounded-xl text-body-sm transition-colors ${state}">

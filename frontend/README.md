@@ -8,6 +8,19 @@ TypeScript, Vite, Tailwind CSS, Axios và Zustand vanilla. Giao diện mặc đ�
 2. Trong `frontend`, chạy `npm install` và `npm run dev`.
 3. Mở địa chỉ Vite hiển thị, nhập email của tài khoản đã tồn tại trong backend, nhận OTP và đăng nhập. OTP có hiệu lực 3 phút theo `OtpService`.
 
+Redis cần truy cập được từ backend tại `localhost:6379`. Với Docker, chỉ thấy `6379/tcp` là chưa mở cổng ra máy chủ. Container Redis của dự án dùng ánh xạ `127.0.0.1:6379:6379`:
+
+```sh
+# Tạo lần đầu (nếu chưa có container này)
+docker run -d --name project-management-redis --restart unless-stopped -p 127.0.0.1:6379:6379 redis:alpine
+# Khởi động lại container đã có
+docker start project-management-redis
+```
+
+Khi Redis không kết nối được, API xác thực trả HTTP 503; đây là lỗi dịch vụ, không phải thiếu quyền của tài khoản.
+
+OTP chỉ lưu bản băm trong Redis với TTL 180 giây và được xóa khi xác thực đúng. PostgreSQL không còn lưu OTP. Khi nâng cấp database cũ, chạy `backend/sql/20260918_drop_otp_tokens.sql` sau khi backend đã cập nhật để xóa bảng `otp_tokens`.
+
 Không cần tạo `.env` nếu backend chạy ở `http://localhost:8080`. Để đổi địa chỉ, sao chép `.env.example` thành `.env` và sửa `API_PROXY_TARGET`. Khởi động lại Vite sau khi đổi cấu hình.
 
 ```env
@@ -39,7 +52,7 @@ Không có HTML nguồn: Vite sinh document khi chạy dev và sinh `dist/index.
 | `client.ts` | POST `/auth/refresh-token`, Bearer token, timeout, chuẩn hóa lỗi |
 | `graduation-terms.ts` | GET/POST `/graduation-terms`, GET `/active`, PUT/DELETE `/{id}` |
 | `categories.ts` | GET/POST `/categories`, PUT/DELETE `/{id}` |
-| `topics.ts` | GET/POST `/topics`, PUT/DELETE `/{id}` |
+| `topics.ts` | GET/POST `/topics`, GET `/mine`, GET `/pending`, PUT `/{id}/review`, PUT/DELETE `/{id}` |
 | `registrations.ts` | POST `/registrations`, GET `/topic`, GET `/lecturer?graduationTermId=...`, GET `/lecturer/pending`, PUT `/{id}/status` |
 | `dashboard.ts` | GET `/dashboard/lecturers?graduationTermId=...` |
 | `lecturers.ts` | GET `/lecturers?graduationTermId=...` (danh sách GVHD cho sinh viên) |
@@ -52,7 +65,17 @@ Các giới hạn theo backend hiện có:
 
 - Sinh viên lấy danh sách GVHD từ `/lecturers`, gồm các tài khoản giảng viên đang hoạt động, không phụ thuộc đề tài gợi ý. Số chỗ trống được tính từ hồ sơ đã duyệt của đợt được chọn; giảng viên hết chỉ tiêu hiển thị nhưng không chọn được. Endpoint dashboard vẫn chỉ dành cho lãnh đạo.
 - Giảng viên có hai mục riêng: **Đang chờ duyệt** và **Sinh viên đã nhận**, với số hồ sơ của đợt đang chọn. Sau khi duyệt, dữ liệu được tải lại từ máy chủ; hồ sơ đã nhận không còn nút duyệt/từ chối. Backend lấy giảng viên từ tài khoản đăng nhập để giới hạn hồ sơ đúng người hướng dẫn.
-- Chưa có API duyệt đề tài cấp khoa/bộ môn hoặc cập nhật tài khoản.
+- GVHD tạo đề tài ở trạng thái `PENDING`. Trưởng bộ môn có mục duyệt/từ chối; chỉ đề tài `APPROVED` xuất hiện cho sinh viên đăng ký. Sửa đề tài sẽ đưa lại về `PENDING`. Giảng viên xem mọi trạng thái của đề tài do mình tạo tại “Đề tài của tôi”.
+- Hệ thống chỉ quản lý khoa CNTT, không còn bảng khoa/bộ môn hay thông tin khoa/bộ môn trên sinh viên, giảng viên. Người duyệt có thể là `HEAD_OF_DEPARTMENT` hoặc `FACULTY_LEADER`, được xem, phê duyệt và từ chối đề tài của mọi giảng viên trong đợt. Endpoint `/topics/department` giữ tên cũ để tương thích, nhưng không còn lọc theo bộ môn.
+- Chỉ lãnh đạo khoa (`FACULTY_LEADER`) có form và quyền API tạo đợt đồ án. Trưởng bộ môn vẫn được chọn đợt để xem dữ liệu và duyệt đề tài. Các sidebar dùng chung mã `dang-xuat` để xử lý đăng xuất.
+- Database cũ cần chạy `backend/sql/20260919_single_it_faculty.sql` sau khi cập nhật backend. Migration bỏ các cột liên kết trước khi xóa bảng `departments`, `faculties`, giữ nguyên sinh viên, giảng viên, đề tài và đăng ký.
+- Giới hạn chung là **5 sinh viên mỗi giảng viên mỗi đợt**, không còn `maxStudents` riêng trên entity Lecturer. API thống kê trả `studentLimit: 5`. Backend khóa dòng giảng viên khi xử lý hồ sơ để kiểm tra chỉ tiêu trước khi duyệt.
+- Giao diện trưởng bộ môn bỏ cột Chỉ tiêu. Tạo đợt nhập `startDate`, `endDate` và hạn đăng ký `registerDate` (cột database `register_date`). Quy định `startDate <= registerDate <= endDate`; sinh viên được đăng ký từ `startDate` đến `registerDate` (bao gồm hai mốc) khi đợt đang hoạt động. `endDate` vẫn là thời điểm kết thúc đồ án.
+- Database cũ cần chạy `backend/sql/20260919_add_register_date.sql`. Các đợt chưa có hạn được gán `register_date = end_date` để giữ nguyên cửa sổ đăng ký trước khi cập nhật.
+
+Database cũ cần chạy thêm `backend/sql/20260917_registration_term_dates.sql` trước khi khởi động lại backend để bỏ cột hạn đăng ký cũ. Script giữ nguyên ngày bắt đầu và kết thúc của các đợt hiện có.
+
+Khi cập nhật database cũ, chạy `backend/sql/20260917_topic_review_and_supervision_limit.sql` trước khi khởi động lại backend. Script bỏ cột `max_students`, thêm trạng thái duyệt và version cho đề tài. Đề tài cũ chưa có trạng thái chuyển thành chờ duyệt; hồ sơ sinh viên đã nhận không bị xóa.
 - Đăng ký tự đề xuất chỉ gửi tên đề tài và các ID; backend chưa nhận công nghệ, mô tả giải pháp hay hướng chuyên ngành.
 - Vai trò đúng là `STUDENT`, `LECTURER`, `HEAD_OF_DEPARTMENT`, `FACULTY_LEADER`.
 

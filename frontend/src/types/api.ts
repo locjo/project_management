@@ -6,7 +6,7 @@ export interface RefreshTokenResponse { accessToken: string; tokenType: string }
 export interface MessageResponse { message: string }
 export interface GraduationTerm {
   id: number; code: string; name: string; academicYear: string; semester: string
-  startDate: string; endDate: string; registrationDeadline: string; active: boolean
+  startDate: string; endDate: string; registerDate: string; active: boolean
 }
 export interface CreateGraduationTerm extends Omit<GraduationTerm, 'id' | 'active'> { isActive: boolean }
 export interface TopicCategory { id: number; code: string; name: string; description: string | null; isActive: boolean }
@@ -14,6 +14,7 @@ export type CreateTopicCategory = Omit<TopicCategory, 'id'>
 export interface Topic {
   id: number; lecturerId: number; lecturerName: string; graduationTermId: number
   categoryId: number; categoryName: string; title: string; description: string | null; active: boolean; createdAt: string
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
 }
 export interface CreateTopic { graduationTermId: number; categoryId: number; title: string; description?: string }
 export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -23,11 +24,11 @@ export interface RegistrationResponse {
 }
 export interface CreateRegistration { graduationTermId: number; lecturerId: number; categoryId: number; topicId?: number; title?: string }
 export interface LecturerQuota {
-  lecturerId: number; lecturerName: string; department: string; academicDegree: string
-  maxStudents: number; approvedStudents: number; availableSlots: number; pendingRequests: number
+  lecturerId: number; lecturerName: string; academicDegree: string
+  studentLimit: number; approvedStudents: number; availableSlots: number; pendingRequests: number
 }
 
 export interface LecturerOption {
-  lecturerId: number; lecturerName: string; department: string | null; academicDegree: string | null
-  maxStudents: number; availableSlots: number
+  lecturerId: number; lecturerName: string; academicDegree: string | null
+  studentLimit: number; availableSlots: number
 }

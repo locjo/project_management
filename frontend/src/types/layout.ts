@@ -20,6 +20,7 @@ export interface NavigationItem {
   label: string
   icon: string
   danger?: boolean
+  children?: NavigationItem[]
 }
 
 export interface SidebarProps {
