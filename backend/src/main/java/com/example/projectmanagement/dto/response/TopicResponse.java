@@ -12,6 +12,7 @@ public record TopicResponse(
         String title,
         String description,
         boolean active,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String status
 ) {
 }

@@ -49,9 +49,13 @@ public class GraduationTerm {
     @Column(name = "end_date", nullable = false)
     private LocalDateTime endDate;
 
-    @Column(name = "registration_deadline", nullable = false)
-    private LocalDateTime registrationDeadline;
+    @Column(name = "register_date", nullable = false)
+    private LocalDateTime registerDate;
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
+
+    public boolean isRegistrationOpenAt(LocalDateTime now) {
+        return isActive && !now.isBefore(startDate) && !now.isAfter(registerDate);
+    }
 }

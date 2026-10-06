@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -49,5 +50,11 @@ public class GlobalExceptionHandler {
         log.error("Unhandled API exception", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Đã xảy ra lỗi hệ thống"));
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ApiResponse<Void>> handleConcurrentUpdate(ObjectOptimisticLockingFailureException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error("Dữ liệu vừa được cập nhật bởi yêu cầu khác. Vui lòng tải lại và thử lại."));
     }
 }

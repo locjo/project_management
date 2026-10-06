@@ -31,25 +31,25 @@ class LecturerServiceTest {
 
     @Test
     void listsLecturerWithoutPublishedTopicsWithTermSpecificSlots() {
-        var lecturer = Lecturer.builder().id(3L).maxStudents(8).department("CNTT")
+        var lecturer = Lecturer.builder().id(3L)
                 .user(User.builder().username("teacher").isActive(true).build()).build();
         when(lecturers.findAllByOrderByIdAsc()).thenReturn(List.of(lecturer));
         when(registrations.countByLecturerIdAndGraduationTermIdAndStatus(3L, 9L, RegistrationStatus.APPROVED)).thenReturn(2L);
         var options = service.getOptions(9L);
         assertEquals(1, options.size());
         assertEquals(3L, options.get(0).lecturerId());
-        assertEquals(6, options.get(0).availableSlots());
+        assertEquals(3, options.get(0).availableSlots());
         verify(registrations).countByLecturerIdAndGraduationTermIdAndStatus(3L, 9L, RegistrationStatus.APPROVED);
     }
 
     @Test
     void fullLecturerIsListedWithZeroSlotsAndInactiveAccountIsExcluded() {
-        var full = Lecturer.builder().id(3L).maxStudents(1)
+        var full = Lecturer.builder().id(3L)
                 .user(User.builder().username("full").isActive(true).build()).build();
-        var inactive = Lecturer.builder().id(4L).maxStudents(8)
+        var inactive = Lecturer.builder().id(4L)
                 .user(User.builder().username("inactive").isActive(false).build()).build();
         when(lecturers.findAllByOrderByIdAsc()).thenReturn(List.of(full, inactive));
-        when(registrations.countByLecturerIdAndGraduationTermIdAndStatus(3L, 9L, RegistrationStatus.APPROVED)).thenReturn(2L);
+        when(registrations.countByLecturerIdAndGraduationTermIdAndStatus(3L, 9L, RegistrationStatus.APPROVED)).thenReturn(6L);
         var options = service.getOptions(9L);
         assertEquals(1, options.size());
         assertEquals(0, options.get(0).availableSlots());

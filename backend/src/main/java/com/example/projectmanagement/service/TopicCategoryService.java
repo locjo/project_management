@@ -10,6 +10,7 @@ import com.example.projectmanagement.dto.request.CreateTopicCategoryRequest;
 import com.example.projectmanagement.dto.response.TopicCategoryResponse;
 import com.example.projectmanagement.entity.TopicCategory;
 import com.example.projectmanagement.exception.AppException;
+import com.example.projectmanagement.mapper.TopicCategoryMapper;
 import com.example.projectmanagement.repository.TopicCategoryRepository;
 
 @Service
@@ -23,7 +24,7 @@ public class TopicCategoryService {
     @Transactional(readOnly = true)
     public List<TopicCategoryResponse> getAll(boolean activeOnly) {
         List<TopicCategory> categories = activeOnly ? repository.findByIsActiveTrueOrderByNameAsc() : repository.findAll();
-        return categories.stream().map(this::toResponse).toList();
+        return categories.stream().map(TopicCategoryMapper::toResponse).toList();
     }
 
     @Transactional
@@ -32,9 +33,7 @@ public class TopicCategoryService {
         repository.findByCodeIgnoreCase(code).ifPresent(existing -> {
             throw new AppException("Mã lĩnh vực đã tồn tại", HttpStatus.BAD_REQUEST);
         });
-        return toResponse(repository.save(TopicCategory.builder()
-                .code(code).name(request.name().trim()).description(trimToNull(request.description()))
-                .isActive(request.isActive()).build()));
+        return TopicCategoryMapper.toResponse(repository.save(TopicCategoryMapper.toEntity(request, code)));
     }
 
     @Transactional
@@ -44,11 +43,8 @@ public class TopicCategoryService {
         repository.findByCodeIgnoreCase(code).ifPresent(existing -> {
             if (!existing.getId().equals(id)) throw new AppException("Mã lĩnh vực đã tồn tại", HttpStatus.BAD_REQUEST);
         });
-        category.setCode(code);
-        category.setName(request.name().trim());
-        category.setDescription(trimToNull(request.description()));
-        category.setActive(request.isActive());
-        return toResponse(repository.save(category));
+        TopicCategoryMapper.updateEntity(category, request, code);
+        return TopicCategoryMapper.toResponse(repository.save(category));
     }
 
     @Transactional
@@ -58,13 +54,5 @@ public class TopicCategoryService {
 
     public TopicCategory getEntity(Long id) {
         return repository.findById(id).orElseThrow(() -> new AppException("Không tìm thấy lĩnh vực đề tài", HttpStatus.NOT_FOUND));
-    }
-
-    private TopicCategoryResponse toResponse(TopicCategory category) {
-        return new TopicCategoryResponse(category.getId(), category.getCode(), category.getName(), category.getDescription(), category.isActive());
-    }
-
-    private String trimToNull(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 }

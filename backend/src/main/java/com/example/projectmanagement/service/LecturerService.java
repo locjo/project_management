@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.projectmanagement.dto.response.LecturerOptionResponse;
 import com.example.projectmanagement.entity.RegistrationStatus;
 import com.example.projectmanagement.exception.AppException;
+import com.example.projectmanagement.mapper.LecturerMapper;
 import com.example.projectmanagement.repository.GraduationTermRepository;
 import com.example.projectmanagement.repository.LecturerRepository;
 import com.example.projectmanagement.repository.RegistrationRepository;
@@ -35,12 +36,10 @@ public class LecturerService {
         return lecturers.findAllByOrderByIdAsc().stream()
                 .filter(lecturer -> lecturer.getUser().isActive())
                 .map(lecturer -> {
-                    int maximum = lecturer.getMaxStudents() == null ? 0 : lecturer.getMaxStudents();
+                    int maximum = SupervisionPolicy.STUDENTS_PER_TERM;
                     long approved = registrations.countByLecturerIdAndGraduationTermIdAndStatus(
                             lecturer.getId(), graduationTermId, RegistrationStatus.APPROVED);
-                    return new LecturerOptionResponse(lecturer.getId(), lecturer.getUser().getUsername(),
-                            lecturer.getDepartment(), lecturer.getAcademicDegree(), maximum,
-                            Math.max(0, maximum - approved));
+                    return LecturerMapper.toOptionResponse(lecturer, maximum, Math.max(0, maximum - approved));
                 }).toList();
     }
 }

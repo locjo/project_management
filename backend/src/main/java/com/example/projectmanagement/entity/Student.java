@@ -12,7 +12,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
@@ -55,18 +54,11 @@ public class Student {
     @Column(name = "class_code", length = 50)
     private String classCode;
 
-    @Column(name = "faculty_code", length = 50)
-    private String facultyCode;
-
     @Column(nullable = false, unique = true, length = 20)
     private String phone;
 
     @Column(name = "academic_year", nullable = false, length = 20)
     private String academicYear;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "department_id", nullable = false)
-    private Department department;
 
     @OneToMany(mappedBy = "student", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

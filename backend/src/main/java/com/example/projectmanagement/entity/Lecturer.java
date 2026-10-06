@@ -33,12 +33,7 @@ public class Lecturer {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
-    @Column(nullable = false, length = 100)
-    private String department;
-
     @Column(name = "academic_degree", length = 100)
     private String academicDegree;
 
-    @Column(nullable = false)
-    private Integer maxStudents;
 }

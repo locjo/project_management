@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Version;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -51,6 +54,16 @@ public class Topic {
     @Column(name = "is_active", nullable = false)
     private boolean active;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'PENDING'")
+    @Builder.Default
+    private TopicStatus status = TopicStatus.PENDING;
+
+    @Version
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    @Builder.Default
+    private Long version = 0L;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
-}
+}  

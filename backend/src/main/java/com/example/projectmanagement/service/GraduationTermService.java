@@ -12,6 +12,7 @@ import com.example.projectmanagement.dto.request.CreateGraduationTermRequest;
 import com.example.projectmanagement.dto.response.GraduationTermResponse;
 import com.example.projectmanagement.entity.GraduationTerm;
 import com.example.projectmanagement.exception.AppException;
+import com.example.projectmanagement.mapper.GraduationTermMapper;
 import com.example.projectmanagement.repository.GraduationTermRepository;
 import com.example.projectmanagement.repository.RegistrationRepository;
 
@@ -36,18 +37,9 @@ public class GraduationTermService {
                     throw new AppException("Mã đợt đồ án đã tồn tại", HttpStatus.BAD_REQUEST);
                 });
 
-        GraduationTerm term = GraduationTerm.builder()
-                .code(request.code().trim())
-                .name(request.name().trim())
-                .academicYear(request.academicYear().trim())
-                .semester(request.semester().trim())
-                .startDate(request.startDate())
-                .endDate(request.endDate())
-                .registrationDeadline(request.registrationDeadline())
-                .isActive(Boolean.TRUE.equals(request.isActive()))
-                .build();
+        GraduationTerm term = GraduationTermMapper.toEntity(request);
 
-        return toResponse(graduationTermRepository.save(term));
+        return GraduationTermMapper.toResponse(graduationTermRepository.save(term));
     }
 
     @Transactional
@@ -65,16 +57,9 @@ public class GraduationTermService {
                     }
                 });
 
-        term.setCode(trimmedCode);
-        term.setName(request.name().trim());
-        term.setAcademicYear(request.academicYear().trim());
-        term.setSemester(request.semester().trim());
-        term.setStartDate(request.startDate());
-        term.setEndDate(request.endDate());
-        term.setRegistrationDeadline(request.registrationDeadline());
-        term.setActive(Boolean.TRUE.equals(request.isActive()));
+        GraduationTermMapper.updateEntity(term, request);
 
-        return toResponse(graduationTermRepository.save(term));
+        return GraduationTermMapper.toResponse(graduationTermRepository.save(term));
     }
 
     @Transactional
@@ -93,7 +78,7 @@ public class GraduationTermService {
     public List<GraduationTermResponse> getAll() {
         return graduationTermRepository.findAllByOrderByStartDateDesc()
                 .stream()
-                .map(this::toResponse)
+                .map(GraduationTermMapper::toResponse)
                 .toList();
     }
 
@@ -101,7 +86,7 @@ public class GraduationTermService {
     public List<GraduationTermResponse> getActive() {
         return graduationTermRepository.findByIsActiveTrueOrderByStartDateDesc()
                 .stream()
-                .map(this::toResponse)
+                .map(GraduationTermMapper::toResponse)
                 .toList();
     }
 
@@ -117,26 +102,12 @@ public class GraduationTermService {
     }
 
     private void validateRequest(CreateGraduationTermRequest request) {
+        if (request.registerDate() == null || request.registerDate().isBefore(request.startDate())
+                || request.registerDate().isAfter(request.endDate())) {
+            throw new AppException("Hạn đăng ký phải từ ngày bắt đầu đến ngày kết thúc của đợt", HttpStatus.BAD_REQUEST);
+        }
         if (request.startDate().isAfter(request.endDate())) {
             throw new AppException("Ngày bắt đầu phải nhỏ hơn hoặc bằng ngày kết thúc", HttpStatus.BAD_REQUEST);
         }
-
-        if (request.registrationDeadline().isAfter(request.startDate())) {
-            throw new AppException("Hạn đăng ký phải nhỏ hơn hoặc bằng ngày bắt đầu", HttpStatus.BAD_REQUEST);
-        }
-    }
-
-    private GraduationTermResponse toResponse(GraduationTerm term) {
-        return new GraduationTermResponse(
-                term.getId(),
-                term.getCode(),
-                term.getName(),
-                term.getAcademicYear(),
-                term.getSemester(),
-                term.getStartDate(),
-                term.getEndDate(),
-                term.getRegistrationDeadline(),
-                term.isActive()
-        );
     }
 }

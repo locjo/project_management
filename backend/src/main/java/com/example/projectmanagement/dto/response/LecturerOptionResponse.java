@@ -1,5 +1,5 @@
 package com.example.projectmanagement.dto.response;
 
-public record LecturerOptionResponse(Long lecturerId, String lecturerName, String department,
-        String academicDegree, int maxStudents, long availableSlots) {
+public record LecturerOptionResponse(Long lecturerId, String lecturerName,
+        String academicDegree, int studentLimit, long availableSlots) {
 }

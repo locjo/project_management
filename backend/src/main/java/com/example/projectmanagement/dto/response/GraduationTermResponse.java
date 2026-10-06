@@ -10,7 +10,7 @@ public record GraduationTermResponse(
         String semester,
         LocalDateTime startDate,
         LocalDateTime endDate,
-        LocalDateTime registrationDeadline,
+        LocalDateTime registerDate,
         boolean active
 ) {
 }

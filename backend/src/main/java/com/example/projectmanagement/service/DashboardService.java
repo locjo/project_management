@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.projectmanagement.dto.response.LecturerQuotaResponse;
 import com.example.projectmanagement.entity.RegistrationStatus;
 import com.example.projectmanagement.exception.AppException;
+import com.example.projectmanagement.mapper.LecturerMapper;
 import com.example.projectmanagement.repository.GraduationTermRepository;
 import com.example.projectmanagement.repository.LecturerRepository;
 import com.example.projectmanagement.repository.RegistrationRepository;
@@ -27,8 +28,8 @@ public class DashboardService {
         return lecturers.findAll().stream().map(lecturer -> {
             long approved = registrations.countByLecturerIdAndGraduationTermIdAndStatus(lecturer.getId(), termId, RegistrationStatus.APPROVED);
             long pending = registrations.countByLecturerIdAndGraduationTermIdAndStatus(lecturer.getId(), termId, RegistrationStatus.PENDING);
-            return new LecturerQuotaResponse(lecturer.getId(), lecturer.getUser().getUsername(), lecturer.getDepartment(), lecturer.getAcademicDegree(),
-                    lecturer.getMaxStudents(), approved, Math.max(0, lecturer.getMaxStudents() - approved), pending);
+            int limit = SupervisionPolicy.STUDENTS_PER_TERM;
+            return LecturerMapper.toQuotaResponse(lecturer, limit, approved, Math.max(0, limit - approved), pending);
         }).toList();
     }
 }
