@@ -29,6 +29,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/lecturers").hasRole("FACULTY_LEADER")
                 .requestMatchers(HttpMethod.GET, "/api/lecturers").hasAnyRole("STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
                 .requestMatchers(HttpMethod.GET, "/api/graduation-terms/**").hasAnyRole("STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
                 .requestMatchers(HttpMethod.POST, "/api/graduation-terms", "/api/graduation-terms/**").hasRole("FACULTY_LEADER")
@@ -43,6 +44,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.DELETE, "/api/topics/*").hasAnyRole("LECTURER", "HEAD_OF_DEPARTMENT")
                 .requestMatchers("/api/topics/**").hasAnyRole("STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
                 .requestMatchers("/api/dashboard/**").hasAnyRole("HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
+                .requestMatchers("/api/students/**").hasRole("HEAD_OF_DEPARTMENT")
                 .requestMatchers("/api/registrations/**").hasAnyRole("STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER")
                 .anyRequest().authenticated()
             )

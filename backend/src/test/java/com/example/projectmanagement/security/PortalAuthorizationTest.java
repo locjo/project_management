@@ -1,6 +1,11 @@
 package com.example.projectmanagement.security;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import com.example.projectmanagement.controller.ProfileController;
+import com.example.projectmanagement.service.ProfileService;
+import com.example.projectmanagement.controller.LecturerAccountController;
+import com.example.projectmanagement.service.LecturerAccountService;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -34,6 +39,10 @@ class PortalAuthorizationTest {
             return new JwtAuthenticationFilter(mock(JwtTokenProvider.class), mock(CustomUserDetailsService.class));
         }
         @Bean Endpoints endpoints() { return new Endpoints(); }
+        @Bean ProfileService profiles() { return mock(ProfileService.class); }
+        @Bean ProfileController profileController(ProfileService profiles) { return new ProfileController(profiles); }
+        @Bean LecturerAccountService lecturerAccounts() { return mock(LecturerAccountService.class); }
+        @Bean LecturerAccountController lecturerAccountsController(LecturerAccountService accounts) { return new LecturerAccountController(accounts); }
     }
 
     @RestController
@@ -45,6 +54,7 @@ class PortalAuthorizationTest {
     }
 
     @Autowired WebApplicationContext context;
+    @Autowired ProfileService profiles;
     MockMvc mvc;
     @BeforeEach void setup() { mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build(); }
 
@@ -56,9 +66,46 @@ class PortalAuthorizationTest {
         mvc.perform(put("/api/topics/1/review").with(user("lecturer").roles("LECTURER"))).andExpect(status().isForbidden());
     }
 
+    @Test void profileRequiresLoginAndUsesAuthenticatedIdentityForEveryRole() throws Exception {
+        mvc.perform(get("/api/users/me")).andExpect(status().isForbidden());
+        for (var role : new String[] { "STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER" }) {
+            mvc.perform(get("/api/users/me").param("username", "someone-else").param("id", "999")
+                    .with(user(role).roles(role))).andExpect(status().isOk());
+            verify(profiles).getProfile(role);
+        }
+    }
+
     @Test void onlyFacultyCanCreateTermsWhileHeadCanStillRead() throws Exception {
         mvc.perform(post("/api/graduation-terms").with(user("faculty").roles("FACULTY_LEADER"))).andExpect(status().isOk());
         mvc.perform(post("/api/graduation-terms").with(user("head").roles("HEAD_OF_DEPARTMENT"))).andExpect(status().isForbidden());
         mvc.perform(get("/api/graduation-terms").with(user("head").roles("HEAD_OF_DEPARTMENT"))).andExpect(status().isOk());
+    }
+
+    @Test void onlyFacultyCanCreateLecturersAndInputIsValidated() throws Exception {
+        String body = "{\"username\":\"teacher\",\"email\":\"teacher@example.test\",\"academicDegree\":\"Master\"}";
+        mvc.perform(post("/api/lecturers").contentType("application/json").content(body)).andExpect(status().isForbidden());
+        for (var role : new String[] { "STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT" }) {
+            mvc.perform(post("/api/lecturers").with(user("other").roles(role))
+                    .contentType("application/json").content(body)).andExpect(status().isForbidden());
+        }
+        mvc.perform(post("/api/lecturers").with(user("faculty").roles("FACULTY_LEADER"))
+                .contentType("application/json").content(body)).andExpect(status().isCreated());
+        mvc.perform(post("/api/lecturers").with(user("faculty").roles("FACULTY_LEADER"))
+                .contentType("application/json").content("{\"username\":\"\",\"email\":\"invalid\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test void profileUpdateIsAuthenticatedAndValidatesInput() throws Exception {
+        mvc.perform(put("/api/users/me").contentType("application/json").content("{\"email\":\"me@example.test\"}"))
+                .andExpect(status().isForbidden());
+        for (var role : new String[] { "STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER" }) {
+            mvc.perform(put("/api/users/me").param("username", "someone-else").with(user("edit-" + role).roles(role))
+                    .contentType("application/json").content("{\"email\":\"me@example.test\"}"))
+                    .andExpect(status().isOk());
+            verify(profiles).updateProfile(org.mockito.ArgumentMatchers.eq("edit-" + role), org.mockito.ArgumentMatchers.any());
+        }
+        mvc.perform(put("/api/users/me").with(user("editor").roles("STUDENT"))
+                .contentType("application/json").content("{\"email\":\"invalid\"}"))
+                .andExpect(status().isBadRequest());
     }
 }

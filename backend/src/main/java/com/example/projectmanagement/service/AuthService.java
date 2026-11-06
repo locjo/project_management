@@ -1,6 +1,8 @@
 package com.example.projectmanagement.service;
 
 import java.time.LocalDateTime;
+import org.springframework.beans.factory.annotation.Value;
+import com.example.projectmanagement.entity.UserRole;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,9 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtTokenProvider jwtTokenProvider;
     private final OtpService otpService;
+
+    @Value("${app.auth.quick-login-enabled:false}")
+    private boolean quickLoginEnabled;
 
     public AuthService(UserRepository userRepository,
                        RefreshTokenRepository refreshTokenRepository,
@@ -69,6 +74,24 @@ public class AuthService {
         }
 
         String accessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getId());
+        return createSession(user, accessToken);
+    }
+
+    @Transactional
+    public LoginResult quickLogin(UserRole role) {
+        if (!quickLoginEnabled) {
+            throw new AuthServiceException("Đăng nhập nhanh đang tắt", HttpStatus.FORBIDDEN);
+        }
+        if (role == null) {
+            throw new AuthServiceException("Vui lòng chọn vai trò đăng nhập", HttpStatus.BAD_REQUEST);
+        }
+        User user = userRepository.findFirstByRoleAndIsActiveTrueOrderByIdAsc(role)
+                .orElseThrow(() -> new AuthServiceException(
+                        "Chưa có tài khoản đang hoạt động cho vai trò " + role.name(), HttpStatus.NOT_FOUND));
+        return createSession(user, jwtTokenProvider.generateToken(user.getUsername(), user.getId()));
+    }
+
+    private LoginResult createSession(User user, String accessToken) {
         String refreshToken = jwtTokenProvider.generateToken(user.getUsername(), user.getId());
 
         refreshTokenRepository.save(RefreshToken.builder()

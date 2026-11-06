@@ -54,7 +54,7 @@ public class Student {
     @Column(name = "class_code", length = 50)
     private String classCode;
 
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(unique = true, length = 20)
     private String phone;
 
     @Column(name = "academic_year", nullable = false, length = 20)

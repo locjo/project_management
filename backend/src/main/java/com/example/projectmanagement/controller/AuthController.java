@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.projectmanagement.dto.request.SendOtpRequest;
+import com.example.projectmanagement.dto.request.QuickLoginRequest;
 import com.example.projectmanagement.dto.request.VerifyOtpRequest;
 import com.example.projectmanagement.dto.response.ApiResponse;
 import com.example.projectmanagement.dto.response.AuthResponse;
@@ -60,6 +61,16 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, jwtTokenProvider.createRefreshTokenCookie(result.refreshToken()).toString())
                 .body(ApiResponse.success("Đăng nhập bằng OTP thành công", data));
+    }
+
+    @PostMapping("/quick-login")
+    public ResponseEntity<ApiResponse<AuthResponse>> quickLogin(@Valid @RequestBody QuickLoginRequest request) {
+        AuthService.LoginResult result = authService.quickLogin(request.role());
+        AuthResponse data = new AuthResponse(result.accessToken(), "Bearer",
+                new UserInfoResponse(result.user().id(), result.user().username(), result.user().role()));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, jwtTokenProvider.createRefreshTokenCookie(result.refreshToken()).toString())
+                .body(ApiResponse.success("Đăng nhập nhanh thành công", data));
     }
 
     @PostMapping("/refresh-token")

@@ -1,7 +1,17 @@
 export interface ApiResponse<T> { success: boolean; message: string; data: T }
 export type UserRole = 'STUDENT' | 'LECTURER' | 'HEAD_OF_DEPARTMENT' | 'FACULTY_LEADER'
 export interface UserInfo { id: number; username: string; role: UserRole }
+export interface UserProfile extends UserInfo {
+  email: string; active: boolean; createdAt: string | null
+  student: { studentCode: string; fullName: string; lastName: string | null; firstName: string | null; dateOfBirth: string | null; classCode: string | null; academicYear: string; phone: string | null } | null
+  lecturer: { academicDegree: string | null } | null
+}
 export interface AuthResponse { accessToken: string; tokenType: string; user: UserInfo }
+export interface UpdateProfile {
+  email: string
+  student?: { lastName: string; firstName: string; dateOfBirth: string | null; classCode: string | null; academicYear: string; phone: string | null }
+  lecturer?: { academicDegree: string | null }
+}
 export interface RefreshTokenResponse { accessToken: string; tokenType: string }
 export interface MessageResponse { message: string }
 export interface GraduationTerm {
@@ -31,4 +41,19 @@ export interface LecturerQuota {
 export interface LecturerOption {
   lecturerId: number; lecturerName: string; academicDegree: string | null
   studentLimit: number; availableSlots: number
+}
+export interface StudentRecord {
+  id: number; userId: number; username: string; email: string; studentCode: string
+  fullName: string; dateOfBirth: string | null; classCode: string | null
+  academicYear: string
+}
+export interface CreateStudent {
+  username: string; email: string; studentCode: string; lastName: string; firstName: string
+  dateOfBirth?: string; classCode?: string; academicYear: string
+}
+export interface StudentImportRowResult {
+  rowNumber: number; studentCode: string; imported: boolean; message: string
+}
+export interface StudentImportResult {
+  totalRows: number; importedCount: number; failedCount: number; rows: StudentImportRowResult[]
 }

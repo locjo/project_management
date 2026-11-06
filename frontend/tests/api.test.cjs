@@ -40,6 +40,77 @@ function harness(handle) {
   return { load, auth, requests, session, token }
 }
 
+test('quick login uses backend sessions for all four roles without OTP requests', async () => {
+  for (const role of ['STUDENT', 'LECTURER', 'HEAD_OF_DEPARTMENT', 'FACULTY_LEADER']) {
+    const h = harness(call => ({ data: { accessToken: 'quick-token', tokenType: 'Bearer', user: { id: 42, username: 'account', role: call.body.role } } }))
+    await h.load('service/auth.ts').authService.quickLogin(role)
+    assert.equal(h.auth.getState().user.role, role)
+    assert.equal(h.auth.getState().user.id, 42)
+    assert.equal(h.auth.getState().accessToken, 'quick-token')
+    assert.equal(h.requests.length, 1)
+    assert.equal(h.requests[0].url, '/auth/quick-login')
+    assert.equal(h.requests[0].method, 'post')
+    assert.deepEqual(h.requests[0].body, { role })
+  }
+})
+
+test('failed quick login does not create a session', async () => {
+  const h = harness(() => ({ status: 403, body: { success: false, message: 'Quick login disabled', data: null } }))
+  await assert.rejects(h.load('service/auth.ts').authService.quickLogin('FACULTY_LEADER'), /Quick login disabled/)
+  assert.equal(h.auth.getState().user, null)
+  assert.equal(h.auth.getState().accessToken, null)
+})
+
+test('personal profile loads the authenticated endpoint and escapes user content', async () => {
+  const profile = { id: 1, username: '<script>alert(1)</script>', email: 'student@example.test', role: 'STUDENT', active: true, createdAt: null,
+    student: { studentCode: 'SV01', fullName: 'Nguyễn An', dateOfBirth: '2004-08-13', classCode: null, academicYear: '2026', phone: null }, lecturer: null }
+  const h = harness(() => ({ data: profile })); h.session()
+  const data = await h.load('service/profile.ts').profileService.me()
+  assert.equal(h.requests[0].url, '/users/me')
+  assert.ok(h.requests[0].authorization.startsWith('Bearer '))
+  const html = h.load('components/profile.ts').renderProfile(data)
+  assert.ok(html.includes('&lt;script&gt;'))
+  assert.ok(!html.includes('<script>'))
+  assert.ok(html.includes('13/08/2004'))
+  assert.ok(html.includes('Chưa cập nhật'))
+  for (const role of ['STUDENT', 'LECTURER', 'HEAD_OF_DEPARTMENT', 'FACULTY_LEADER']) {
+    h.session(role)
+    assert.ok(h.load('pages/portal.ts').renderPortal(h.auth.getState().user).includes('data-path="thong-tin-ca-nhan"'))
+  }
+})
+
+test('profile edits use the current-user endpoint and render only editable fields', async () => {
+  const h = harness(call => ({ data: { id: 1, username: 'an', role: 'STUDENT', ...call.body } })); h.session()
+  const changes = { email: 'new@example.test', student: { lastName: 'Nguyễn', firstName: 'An', dateOfBirth: null, classCode: null, academicYear: '2026', phone: null } }
+  const result = await h.load('service/profile.ts').profileService.update(changes)
+  assert.equal(result.email, changes.email)
+  assert.equal(h.requests[0].method, 'put')
+  assert.equal(h.requests[0].url, '/users/me')
+  assert.deepEqual(h.requests[0].body, changes)
+  const html = h.load('components/profile.ts').renderProfileForm({ ...result, lecturer: null })
+  assert.ok(html.includes('name="firstName"'))
+  assert.ok(!html.includes('name="role"'))
+  assert.ok(!html.includes('name="studentCode"'))
+  assert.ok(!html.includes('name="username"'))
+})
+
+test('faculty can add a lecturer from the lecturer tab without an existing term', async () => {
+  const h = harness(call => ({ data: { lecturerId: 10, userId: 20, ...call.body } })); h.session('FACULTY_LEADER')
+  const data = { username: 'teacher', email: 'teacher@example.test', academicDegree: 'Tiến sĩ' }
+  await h.load('service/lecturers.ts').lecturerService.create(data)
+  assert.equal(h.requests[0].method, 'post')
+  assert.equal(h.requests[0].url, '/lecturers')
+  assert.deepEqual(h.requests[0].body, data)
+  const portal = h.load('pages/portal.ts')
+  assert.ok(portal.renderPortal(h.auth.getState().user).includes('id="lecturer-form"'))
+  const tab = h.load('lib/portal-tabs.ts').getPortalTab('FACULTY_LEADER', 'giang-vien-huong-dan')
+  assert.ok(tab.sections.includes('create-lecturer'))
+  for (const role of ['STUDENT', 'LECTURER', 'HEAD_OF_DEPARTMENT']) {
+    h.session(role)
+    assert.ok(!portal.renderPortal(h.auth.getState().user).includes('id="lecturer-form"'))
+  }
+})
+
 test('maps backend request bodies, response envelope and Bearer credentials', async () => {
   const h = harness(() => ({ data: { id: 7 } })); h.session()
   const registration = h.load('service/registrations.ts').registrationService

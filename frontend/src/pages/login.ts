@@ -5,6 +5,17 @@ export function renderLogin(): string {
     ${renderLogo()}
     <h1 class="text-2xl font-bold mt-6">Đăng nhập hệ thống</h1>
     <p class="text-secondary mt-2">Sử dụng email tài khoản tại trường để nhận mã xác thực.</p>
+    <section class="quick-login" aria-labelledby="quick-login-title">
+      <h2 id="quick-login-title">Đăng nhập nhanh</h2>
+      <p class="text-secondary text-sm">Chọn vai trò để đăng nhập không cần OTP.</p>
+      <div class="quick-login-grid">
+        <button type="button" class="api-button secondary" data-quick-role="STUDENT">Sinh viên</button>
+        <button type="button" class="api-button secondary" data-quick-role="LECTURER">Giảng viên</button>
+        <button type="button" class="api-button secondary" data-quick-role="HEAD_OF_DEPARTMENT">Trưởng bộ môn</button>
+        <button type="button" class="api-button secondary" data-quick-role="FACULTY_LEADER">Lãnh đạo khoa</button>
+      </div>
+      <p id="quick-login-status" class="text-secondary text-sm" role="status"></p>
+    </section>
     <form id="email-form" class="api-form mt-6">
       <label>Email<input type="email" name="email" autocomplete="email" placeholder="ten@humg.edu.vn" required></label>
       <button type="submit" class="api-button">Gửi mã OTP</button>

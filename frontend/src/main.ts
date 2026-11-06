@@ -1,14 +1,18 @@
 import './style.css'
 import { message } from './components/dialog'
+import { showProfile } from './components/profile'
 import { renderLogin } from './pages/login'
 import { renderPortal, roleScreens } from './pages/portal'
 import { authStore } from './stores/auth'
 import { portalStore } from './stores/portal'
 import { authService } from './service/auth'
+import type { UserRole } from './types/api'
 import { registrationService } from './service/registrations'
 import { topicService } from './service/topics'
 import { categoryService } from './service/categories'
 import { graduationTermService } from './service/graduation-terms'
+import { studentService } from './service/students'
+import { lecturerService } from './service/lecturers'
 import { apiError } from './service/errors'
 import { getPortalTab, portalTabs } from './lib/portal-tabs'
 
@@ -71,6 +75,14 @@ function setupLogin() {
     document.querySelector('#otp-email')!.textContent = email
     verifyForm.reset(); verifyForm.querySelector<HTMLInputElement>('input')!.focus(); tick()
   }
+  document.querySelectorAll<HTMLButtonElement>('[data-quick-role]').forEach(button => {
+    button.onclick = () => void run(async () => {
+      const status = document.querySelector<HTMLElement>('#quick-login-status')!
+      status.textContent = `Đang đăng nhập với vai trò ${button.textContent}…`
+      try { await authService.quickLogin(button.dataset.quickRole as UserRole) }
+      finally { if (active) status.textContent = '' }
+    })
+  })
   emailForm.onsubmit = event => {
     event.preventDefault()
     if (!emailForm.reportValidity()) return
@@ -166,6 +178,42 @@ function setupPortal() {
   }
   bind('topic-form', data => topicService.create({ graduationTermId: portalStore.getState().selectedTermId!, categoryId: Number(data.get('categoryId')), title: String(data.get('title')).trim(), description: String(data.get('description')).trim() }), 'Đề tài đã được gửi tới trưởng bộ môn và đang chờ phê duyệt.')
   bind('category-form', data => categoryService.create({ code: String(data.get('code')).trim(), name: String(data.get('name')).trim(), description: String(data.get('description')).trim(), isActive: true }), 'Đã thêm lĩnh vực.')
+  bind('lecturer-form', data => lecturerService.create({
+    username: String(data.get('username')).trim(), email: String(data.get('email')).trim(),
+    academicDegree: String(data.get('academicDegree')).trim(),
+  }), 'Đã tạo tài khoản giảng viên. Giảng viên có thể đăng nhập bằng email vừa đăng ký.')
+  bind('student-form', data => studentService.create({
+    username: String(data.get('username')).trim(),
+    email: String(data.get('email')).trim(),
+    studentCode: String(data.get('studentCode')).trim(),
+    lastName: String(data.get('lastName')).trim(),
+    firstName: String(data.get('firstName')).trim(),
+    ...(String(data.get('dateOfBirth')) ? { dateOfBirth: String(data.get('dateOfBirth')) } : {}),
+    ...(String(data.get('classCode')).trim() ? { classCode: String(data.get('classCode')).trim() } : {}),
+    academicYear: String(data.get('academicYear')).trim(),
+  }), 'Đã thêm sinh viên và tạo tài khoản đăng nhập OTP.')
+  const importForm = document.querySelector<HTMLFormElement>('#student-import-form')
+  if (importForm) importForm.onsubmit = event => {
+    event.preventDefault()
+    if (!importForm.reportValidity() || importForm.dataset.pending) return
+    const file = importForm.querySelector<HTMLInputElement>('input[name="file"]')?.files?.[0]
+    if (!file) return
+    importForm.dataset.pending = 'true'
+    const button = importForm.querySelector<HTMLButtonElement>('button[type="submit"]')!
+    button.disabled = true
+    void studentService.importExcel(file, {
+      emailDomain: String(new FormData(importForm).get('emailDomain') ?? ''),
+      academicYear: String(new FormData(importForm).get('academicYear') ?? ''),
+    }).then(async result => {
+      const details = result.rows.filter(row => !row.imported).slice(0, 15)
+        .map(row => `Dòng ${row.rowNumber}${row.studentCode ? ` (${row.studentCode})` : ''}: ${row.message}`)
+      const more = result.failedCount > details.length ? `\n… và ${result.failedCount - details.length} dòng lỗi khác.` : ''
+      message('Kết quả nhập Excel', `Đã thêm ${result.importedCount}/${result.totalRows} sinh viên.\nSố dòng lỗi: ${result.failedCount}.${details.length ? `\n\n${details.join('\n')}${more}` : ''}`)
+      importForm.reset()
+      await portalStore.getState().load()
+    }).catch(error => message('Không thể nhập file Excel', apiError(error).message))
+      .finally(() => { delete importForm.dataset.pending; button.disabled = false })
+  }
   bind('term-form', data => {
     const startDate = String(data.get('startDate')), endDate = String(data.get('endDate'))
     const registerDate = String(data.get('registerDate'))
@@ -181,7 +229,21 @@ app.addEventListener('click', async event => {
   if (!target || target.closest('#email-form, #verify-form')) return
   if (target.tagName === 'A') event.preventDefault()
   if (target.dataset.action === 'reload') { void portalStore.getState().load(); return }
+  if (target.dataset.action === 'student-template') {
+    const button = target as HTMLButtonElement
+    button.disabled = true
+    try {
+      const blob = await studentService.downloadTemplate()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url; link.download = 'student-import-template.xlsx'; link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) { message('Không thể tải file mẫu', apiError(error).message) }
+    finally { button.disabled = false }
+    return
+  }
   const path = target.dataset.path
+  if (path === 'thong-tin-ca-nhan' || path === 'thiet-lap-tai-khoan') { showProfile(); return }
   const user = authStore.getState().user
   if (path && user && portalTabs[user.role].some(tab => tab.path === path)) {
     portalStore.getState().setActiveTab(path)
@@ -194,7 +256,6 @@ app.addEventListener('click', async event => {
     finally { delete target.dataset.pending }
     return
   }
-  if (path === 'thiet-lap-tai-khoan') { message('Tài khoản', 'Backend hiện chưa cung cấp chức năng cập nhật tài khoản.'); return }
   if (target.dataset.selectTopic) {
     const select = document.querySelector<HTMLSelectElement>('#registration-form [name="topicId"]')
     const mode = document.querySelector<HTMLSelectElement>('#registration-form [name="mode"]')

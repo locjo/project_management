@@ -1,35 +1,50 @@
+server:
+  port: ${PORT:8080}
+
 spring:
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
   application:
     name: project_management
+
   datasource:
-    url: jdbc:postgresql://localhost:5432/project_management
-    username: postgres
-    password: 1234
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
   mail:
     host: smtp.gmail.com
     port: 587
-    username: dangloc130804@gmail.com
-    password: ngrz pcyq ywxl afvy
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
+
   data:
     redis:
-      host: localhost
-      port: 6379
+      url: ${REDIS_URL}
       timeout: 5000ms
 
+app:
+  auth:
+    quick-login-enabled: ${QUICK_LOGIN_ENABLED:false}
+
 jwt:
-  secret: "c29tZS1rZXktZm9yLWFwcC1zaWduaW5nLWFuZC1hdXRoZW50aWNhdGlvbg=="
+  secret: ${JWT_SECRET}
   access-token-expiration-ms: 3600000
   refresh-token-expiration-days: 7

@@ -4,6 +4,7 @@ export interface PortalTab { path: string; label: string; sections: string[] }
 
 export const portalTabs: Record<UserRole, PortalTab[]> = {
   HEAD_OF_DEPARTMENT: [
+    { path: 'sinh-vien', label: 'Quản lý sinh viên', sections: ['students'] },
     { path: 'giang-vien-huong-dan', label: 'Giảng viên', sections: ['lecturers'] },
     { path: 'topic-approved', label: 'Đề tài đã duyệt', sections: ['topic-approved'] },
     { path: 'topic-approval', label: 'Đề tài chờ duyệt', sections: ['topic-approval'] },
@@ -25,7 +26,7 @@ export const portalTabs: Record<UserRole, PortalTab[]> = {
     { path: 'topic-approval', label: 'Đề tài chờ duyệt', sections: ['topic-approval'] },
     { path: 'topic-rejected', label: 'Đề tài đã từ chối', sections: ['topic-rejected'] },
     { path: 'linh-vuc-de-tai', label: 'Lĩnh vực đề tài', sections: ['categories'] },
-    { path: 'giang-vien-huong-dan', label: 'Giảng viên', sections: ['lecturers'] },
+    { path: 'giang-vien-huong-dan', label: 'Giảng viên', sections: ['lecturers', 'create-lecturer'] },
     { path: 'item-3', label: 'Đợt đồ án', sections: ['terms'] },
   ],
 }
