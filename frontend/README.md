@@ -29,7 +29,7 @@ VITE_API_URL=http://localhost:8080
 VITE_ENABLE_QUICK_LOGIN=true
 ```
 
-Vite dev và preview proxy `/api` đến `VITE_API_URL`, gửi kèm cookie refresh token. Trình duyệt tiếp tục gọi API cùng origin qua `/api`, tránh yêu cầu CORS và giữ tương thích cookie. Khi triển khai trên Vercel, đặt Root Directory là `frontend` và biến `API_PROXY_TARGET` là origin HTTPS của backend (không thêm `/api`). File `vercel.mjs` chuyển tiếp API và cấu hình SPA fallback. Sau khi đổi biến môi trường, deploy lại; xem `../DEPLOY.md`.
+Vite dev và preview proxy `/api` đến `VITE_API_URL`, gửi kèm cookie refresh token. Trình duyệt tiếp tục gọi API cùng origin qua `/api`, tránh yêu cầu CORS và giữ tương thích cookie. Khi triển khai trên Vercel, đặt Root Directory là `frontend`. File `vercel.json` chuyển tiếp API đến Render và cấu hình SPA fallback; không dùng biến `API_PROXY_TARGET` trên Vercel. Sau khi đổi URL backend trong file này, deploy lại; xem `../DEPLOY.md`.
 
 Đăng nhập nhanh chỉ hiện khi đặt `VITE_ENABLE_QUICK_LOGIN=true` (dùng cho local/test). Mặc định production không hiện các nút này; backend cũng phải tự xác thực trạng thái bật/tắt và nên để `QUICK_LOGIN_ENABLED=false` trên môi trường công khai.
 

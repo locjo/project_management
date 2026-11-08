@@ -45,10 +45,9 @@ Truy cập `/` có thể bị từ chối do Spring Security; điều này khôn
 1. Import repository trên Vercel, Root Directory: `frontend`, Framework: **Vite**.
 2. Build Command: `npm run build`; Output Directory: `dist`.
 3. Cấu hình mặc định đã trỏ tới `https://project-management-3-15e9.onrender.com`.
-   Nếu đổi backend, đặt `API_PROXY_TARGET` trong Settings → Environment Variables bằng origin HTTPS
-   mới (không thêm `/api`, không dùng URL frontend Vercel), cho các môi trường cần deploy.
+   Nếu đổi backend, sửa `destination` trong `frontend/vercel.json`, giữ `/api/:path*` ở cuối.
 4. Giữ `VITE_API_BASE_URL=/api` hoặc để trống để dùng mặc định trong code.
-5. Commit/push `frontend/vercel.mjs`, rồi deploy lại. Đổi biến môi trường cũng cần redeploy.
+5. Commit/push `frontend/vercel.json` và việc xóa `frontend/vercel.mjs`, rồi deploy commit mới.
 
 Vercel rewrite chuyển tiếp `/api/...` sang Render. Trình duyệt gọi API trên cùng
 origin với frontend; không cần cấu hình CORS cho luồng này. Cookie refresh token
@@ -56,13 +55,13 @@ hiện không có Domain và dùng SameSite=Lax, phù hợp với cách proxy c�
 `VITE_API_URL` chỉ dùng cho Vite dev/preview, không cấu hình proxy production của Vercel.
 Không đưa DB password, mail password hoặc JWT secret vào biến `VITE_*`.
 
-`frontend/vercel.mjs` là cấu hình Vercel thực tế, đọc `API_PROXY_TARGET` khi deploy
-và chuyển `/api/...` đến backend trước SPA fallback. Khi không đặt biến này, cấu hình
-dùng URL Render mặc định ở trên. Không tạo thêm `vercel.json`
-cùng thư mục; Vercel chỉ dùng một file cấu hình.
+`frontend/vercel.json` chuyển `/api/...` đến Render trước SPA fallback.
+Không đặt thêm `vercel.mjs` cùng thư mục. `API_PROXY_TARGET` không còn dùng trên Vercel.
+Response header `X-App-Deployment: render-api-proxy-v2` giúp xác nhận bản sửa đã áp dụng.
 
 Nếu `/api/auth/send-otp` hoặc `/api/auth/quick-login` trả 404 trên domain Vercel,
-kiểm tra Root Directory, `API_PROXY_TARGET` và bản deploy có chứa `vercel.mjs`.
+kiểm tra Root Directory và commit của deployment đang gắn domain Production.
+Nếu thiếu header trên, cấu hình mới chưa được áp dụng cho domain đang truy cập.
 Chỉ deploy frontend không chạy được backend Java. URL `localhost:8080` trên máy cá nhân
 cũng không thể dùng làm backend cho Vercel.
 
