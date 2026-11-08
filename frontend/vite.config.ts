@@ -34,9 +34,15 @@ function typescriptEntry(): Plugin {
   }
 }
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const proxy = { '/api': { target: env.API_PROXY_TARGET || 'http://localhost:8080', changeOrigin: true } }
+  const apiTarget = env.VITE_API_URL || env.API_PROXY_TARGET
+  if (command === 'serve' && !apiTarget) {
+    throw new Error('Set VITE_API_URL in frontend/.env.local to the backend URL.')
+  }
+  const proxy = apiTarget
+    ? { '/api': { target: apiTarget, changeOrigin: true } }
+    : undefined
   return {
   plugins: [tailwindcss(), typescriptEntry()],
   build: { rollupOptions: { input: 'src/main.ts' } },

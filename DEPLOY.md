@@ -47,16 +47,16 @@ Truy cập `/` có thể bị từ chối do Spring Security; điều này khôn
 3. Commit và push file cấu hình này.
 4. Import repository trên Vercel, Root Directory: `frontend`, Framework: **Vite**.
 5. Build Command: `npm run build`; Output Directory: `dist`.
-6. Đặt `VITE_API_BASE_URL=/api` hoặc để trống để dùng mặc định trong code.
+6. Giữ `VITE_API_BASE_URL=/api` hoặc để trống để dùng mặc định trong code.
 7. Deploy frontend.
 
 Vercel rewrite chuyển tiếp `/api/...` sang Render. Trình duyệt gọi API trên cùng
 origin với frontend; không cần cấu hình CORS cho luồng này. Cookie refresh token
 hiện không có Domain và dùng SameSite=Lax, phù hợp với cách proxy cùng origin.
-`API_PROXY_TARGET` chỉ dùng cho Vite dev/preview, không cấu hình proxy production của Vercel.
+`VITE_API_URL` chỉ dùng cho Vite dev/preview, không cấu hình proxy production của Vercel.
 Không đưa DB password, mail password hoặc JWT secret vào biến `VITE_*`.
 
-File `.example` chưa được Vercel áp dụng: phải tạo `vercel.json` với URL thật trước khi deploy.
+File `.example` chưa được Vercel áp dụng: phải tạo `vercel.json` với URL thật trước khi deploy. Mẫu cũng có SPA fallback về `/index.html` cho các đường dẫn frontend khi tải lại.
 
 ## 4. Kiểm tra sau deploy
 

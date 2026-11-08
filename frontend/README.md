@@ -21,14 +21,14 @@ Khi Redis không kết nối được, API xác thực trả HTTP 503; đây là
 
 OTP chỉ lưu bản băm trong Redis với TTL 180 giây và được xóa khi xác thực đúng. PostgreSQL không còn lưu OTP. Khi nâng cấp database cũ, chạy `backend/sql/20260918_drop_otp_tokens.sql` sau khi backend đã cập nhật để xóa bảng `otp_tokens`.
 
-Không cần tạo `.env` nếu backend chạy ở `http://localhost:8080`. Để đổi địa chỉ, sao chép `.env.example` thành `.env` và sửa `API_PROXY_TARGET`. Khởi động lại Vite sau khi đổi cấu hình.
+Vite đọc URL backend từ `VITE_API_URL`. Tạo `frontend/.env.local` (đã được Git bỏ qua) và đặt URL backend; khởi động lại dev server sau khi đổi giá trị.
 
 ```env
 VITE_API_BASE_URL=/api
-API_PROXY_TARGET=http://localhost:8080
+VITE_API_URL=http://localhost:8080
 ```
 
-Vite dev và preview proxy `/api` đến backend, gửi kèm cookie refresh token. Khi triển khai bản build, web server phải reverse proxy `/api` đến Spring Boot. Nếu dùng URL API khác origin, backend cần cấu hình CORS cho origin frontend và cho phép credentials; backend hiện tại chưa bật CORS.
+Vite dev và preview proxy `/api` đến `VITE_API_URL`, gửi kèm cookie refresh token. Trình duyệt tiếp tục gọi API cùng origin qua `/api`, tránh yêu cầu CORS và giữ tương thích cookie. Khi triển khai, sao chép `vercel.json.example` thành `vercel.json` và thay URL backend placeholder. Mẫu cũng cấu hình SPA fallback về `/index.html` khi tải lại đường dẫn trực tiếp.
 
 ## Cấu trúc
 

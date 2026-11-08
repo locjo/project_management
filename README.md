@@ -25,7 +25,7 @@ Hệ thống quản lý đồ án tốt nghiệp dành cho sinh viên, giảng v
 - Maven
 
 ### Frontend
-- React + TypeScript
+- TypeScript SPA
 - Vite
 - Tailwind CSS
 - Axios
@@ -248,11 +248,11 @@ spring.datasource.password=your_secure_password
 spring.jpa.hibernate.ddl-auto=update
 ```
 
-Frontend cần cấu hình API base URL nếu có environment khác:
+Frontend dùng cùng origin `/api`; URL backend chỉ cấu hình cho proxy Vite local:
 
 ```env
 VITE_API_BASE_URL=/api
-API_PROXY_TARGET=http://localhost:8080
+VITE_API_URL=http://localhost:8080
 ```
 
 ## Chức năng chính
