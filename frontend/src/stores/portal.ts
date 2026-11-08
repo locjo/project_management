@@ -5,12 +5,14 @@ import { topicService } from '../service/topics'
 import { dashboardService } from '../service/dashboard'
 import { registrationService } from '../service/registrations'
 import { lecturerService } from '../service/lecturers'
+import type { LecturerAccount } from '../service/lecturers'
 import { studentService } from '../service/students'
 import { apiError } from '../service/errors'
 import { authStore } from './auth'
 import type { GraduationTerm, TopicCategory, Topic, LecturerQuota, LecturerOption, RegistrationResponse, StudentRecord } from '../types/api'
 
 interface PortalState {
+  lecturerAccounts: LecturerAccount[]
   activeTab: string | null
   setActiveTab: (path: string) => void
   terms: GraduationTerm[]; categories: TopicCategory[]; topics: Topic[]
@@ -22,7 +24,7 @@ interface PortalState {
   load: (termId?: number) => Promise<void>
   reset: () => void
 }
-const initial = { terms: [], categories: [], topics: [], ownTopics: [], departmentTopics: [], lecturers: [], lecturerOptions: [], studentRecords: [], registrations: [], selectedTermId: null, loading: false, error: null, termsLoaded: false }
+const initial = { terms: [], categories: [], topics: [], ownTopics: [], departmentTopics: [], lecturers: [], lecturerAccounts: [], lecturerOptions: [], studentRecords: [], registrations: [], selectedTermId: null, loading: false, error: null, termsLoaded: false }
 async function loadResource<T>(name: string, request: Promise<T>): Promise<T> {
   try { return await request }
   catch (error) { throw new Error(`${name}: ${apiError(error).message}`) }
@@ -38,11 +40,11 @@ export const portalStore = createStore<PortalState>((set, get) => ({
     if (!user) return
     const requestId = ++revision
     const preferred = termId ?? get().selectedTermId
-      set({ loading: true, error: null, topics: [], ownTopics: [], departmentTopics: [], lecturers: [], lecturerOptions: [], studentRecords: [], registrations: [] })
+      set({ loading: true, error: null, topics: [], ownTopics: [], departmentTopics: [], lecturers: [], lecturerAccounts: [], lecturerOptions: [], studentRecords: [], registrations: [] })
     try {
       const [terms, categories] = await Promise.all([
         loadResource('Tải đợt đồ án', user.role === 'STUDENT' ? graduationTermService.active() : graduationTermService.list()),
-        loadResource('Tải lĩnh vực đề tài', categoryService.list()),
+        loadResource('Tải lĩnh vực đề tài', categoryService.list(user.role !== 'HEAD_OF_DEPARTMENT' && user.role !== 'FACULTY_LEADER')),
       ])
       const now = Date.now()
       const openTerm = user.role === 'STUDENT' ? terms.find(term => term.active
@@ -53,17 +55,18 @@ export const portalStore = createStore<PortalState>((set, get) => ({
       // Keep successful reference data even if a later request for student records fails.
       set({ terms, categories, selectedTermId, termsLoaded: true })
       const administrator = user.role === 'FACULTY_LEADER' || user.role === 'HEAD_OF_DEPARTMENT'
-      const [topics, lecturers, registrations, lecturerOptions, ownTopics, departmentTopics, studentRecords] = await Promise.all([
+      const [topics, lecturers, registrations, lecturerOptions, ownTopics, departmentTopics, studentRecords, lecturerAccounts] = await Promise.all([
         selectedTermId && !administrator ? loadResource('Tải danh sách đề tài', topicService.list(selectedTermId)) : Promise.resolve([]),
         selectedTermId && administrator ? loadResource('Tải thống kê giảng viên', dashboardService.lecturers(selectedTermId)) : Promise.resolve([]),
         user.role === 'STUDENT' ? loadResource('Tải hồ sơ sinh viên', registrationService.mine()) : user.role === 'LECTURER' && selectedTermId ? loadResource('Tải sinh viên hướng dẫn', registrationService.forLecturer(selectedTermId)) : Promise.resolve([]),
-        selectedTermId && user.role === 'STUDENT' ? loadResource('Tải giảng viên hướng dẫn', lecturerService.list(selectedTermId)) : Promise.resolve([]),
+        selectedTermId && (user.role === 'STUDENT' || administrator) ? loadResource('Tải giảng viên hướng dẫn', lecturerService.list(selectedTermId)) : Promise.resolve([]),
         selectedTermId && user.role === 'LECTURER' ? loadResource('Tải đề tài của tôi', topicService.mine(selectedTermId)) : Promise.resolve([]),
         selectedTermId && administrator ? loadResource('Tải đề tài khoa CNTT', topicService.department(selectedTermId)) : Promise.resolve([]),
         user.role === 'HEAD_OF_DEPARTMENT' ? loadResource('Tải danh sách sinh viên', studentService.list()) : Promise.resolve([]),
+        user.role === 'HEAD_OF_DEPARTMENT' ? loadResource('Tải tài khoản giảng viên', lecturerService.accounts()) : Promise.resolve([]),
       ])
       if (requestId !== revision || authStore.getState().user?.id !== user.id) return
-      set({ terms, categories, selectedTermId, topics, lecturers, lecturerOptions, registrations, ownTopics, departmentTopics, studentRecords, loading: false })
+      set({ terms, categories, selectedTermId, topics, lecturers, lecturerAccounts, lecturerOptions, registrations, ownTopics, departmentTopics, studentRecords, loading: false })
     } catch (error) {
       if (requestId === revision) set({ loading: false, error: apiError(error).message })
     }

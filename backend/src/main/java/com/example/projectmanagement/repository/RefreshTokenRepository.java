@@ -9,6 +9,7 @@ import com.example.projectmanagement.entity.RefreshToken;
 
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
+    void deleteByUserId(Long userId);
 
     Optional<RefreshToken> findByToken(String token);
 

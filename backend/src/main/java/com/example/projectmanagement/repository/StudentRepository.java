@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.example.projectmanagement.entity.Student;
 
 public interface StudentRepository extends JpaRepository<Student, Long> {
+    boolean existsByStudentCodeIgnoreCaseAndIdNot(String studentCode, Long id);
 
     Optional<Student> findByUserId(Long userId);
     List<Student> findAllByOrderByIdDesc();

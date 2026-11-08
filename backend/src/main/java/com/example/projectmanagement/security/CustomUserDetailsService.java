@@ -25,6 +25,16 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với username: " + username));
 
+        return toUserDetails(user);
+    }
+
+    public UserDetails loadUserById(Long id) {
+        if (id == null) throw new UsernameNotFoundException("Token thiếu định danh tài khoản");
+        return toUserDetails(userRepository.findById(id)
+                .orElseThrow(() -> new UsernameNotFoundException("Tài khoản không còn tồn tại")));
+    }
+
+    private UserDetails toUserDetails(User user) {
         String roleName = user.getRole() != null ? user.getRole().name() : "STUDENT";
         SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + roleName);
 

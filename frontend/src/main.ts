@@ -176,13 +176,23 @@ function setupPortal() {
     const form = document.querySelector<HTMLFormElement>(`#${id}`)
     if (form) form.onsubmit = event => { event.preventDefault(); void mutate(form, action, success) }
   }
-  bind('topic-form', data => topicService.create({ graduationTermId: portalStore.getState().selectedTermId!, categoryId: Number(data.get('categoryId')), title: String(data.get('title')).trim(), description: String(data.get('description')).trim() }), 'Đề tài đã được gửi tới trưởng bộ môn và đang chờ phê duyệt.')
-  bind('category-form', data => categoryService.create({ code: String(data.get('code')).trim(), name: String(data.get('name')).trim(), description: String(data.get('description')).trim(), isActive: true }), 'Đã thêm lĩnh vực.')
-  bind('lecturer-form', data => lecturerService.create({
+  bind('topic-form', data => {
+    const input = { graduationTermId: Number(data.get('graduationTermId')), categoryId: Number(data.get('categoryId')), title: String(data.get('title')).trim(), description: String(data.get('description')).trim(), ...(data.get('lecturerId') ? { lecturerId: Number(data.get('lecturerId')) } : {}) }
+    return data.get('id') ? topicService.update(Number(data.get('id')), input) : topicService.create(input)
+  }, 'Đã lưu đề tài và chuyển về trạng thái chờ duyệt.')
+  bind('category-form', data => {
+    const input = { code: String(data.get('code')).trim(), name: String(data.get('name')).trim(), description: String(data.get('description')).trim(), isActive: data.get('isActive') === 'true' }
+    return data.get('id') ? categoryService.update(Number(data.get('id')), input) : categoryService.create(input)
+  }, 'Đã lưu lĩnh vực.')
+  bind('lecturer-form', data => {
+    const input = {
     username: String(data.get('username')).trim(), email: String(data.get('email')).trim(),
     academicDegree: String(data.get('academicDegree')).trim(),
-  }), 'Đã tạo tài khoản giảng viên. Giảng viên có thể đăng nhập bằng email vừa đăng ký.')
-  bind('student-form', data => studentService.create({
+    }
+    return data.get('id') ? lecturerService.update(Number(data.get('id')), input) : lecturerService.create(input)
+  }, 'Đã lưu thông tin giảng viên.')
+  bind('student-form', data => {
+    const input = {
     username: String(data.get('username')).trim(),
     email: String(data.get('email')).trim(),
     studentCode: String(data.get('studentCode')).trim(),
@@ -191,7 +201,9 @@ function setupPortal() {
     ...(String(data.get('dateOfBirth')) ? { dateOfBirth: String(data.get('dateOfBirth')) } : {}),
     ...(String(data.get('classCode')).trim() ? { classCode: String(data.get('classCode')).trim() } : {}),
     academicYear: String(data.get('academicYear')).trim(),
-  }), 'Đã thêm sinh viên và tạo tài khoản đăng nhập OTP.')
+    }
+    return data.get('id') ? studentService.update(Number(data.get('id')), input) : studentService.create(input)
+  }, 'Đã lưu thông tin sinh viên.')
   const importForm = document.querySelector<HTMLFormElement>('#student-import-form')
   if (importForm) importForm.onsubmit = event => {
     event.preventDefault()
@@ -229,6 +241,92 @@ app.addEventListener('click', async event => {
   if (!target || target.closest('#email-form, #verify-form')) return
   if (target.tagName === 'A') event.preventDefault()
   if (target.dataset.action === 'reload') { void portalStore.getState().load(); return }
+  if (target.dataset.editTopic || target.dataset.editCategory || target.hasAttribute('data-cancel-topic') || target.hasAttribute('data-cancel-category')) {
+    const role = authStore.getState().user?.role
+    const topic = Boolean(target.dataset.editTopic || target.hasAttribute('data-cancel-topic'))
+    const manager = role === 'HEAD_OF_DEPARTMENT' || role === 'FACULTY_LEADER'
+    if (!manager && !(topic && role === 'LECTURER')) return
+    const state = portalStore.getState()
+    const id = Number(topic ? target.dataset.editTopic : target.dataset.editCategory)
+    const record = topic ? (manager ? state.departmentTopics : state.ownTopics).find(item => item.id === id)
+      : state.categories.find(item => item.id === id)
+    // Review sub-tabs hide the editor; switch to the full management tab first.
+    if (topic) state.setActiveTab(manager ? 'manage-topics' : 'my-topics')
+    const form = document.querySelector<HTMLFormElement>(topic ? '#topic-form' : '#category-form')
+    if (!form || form.dataset.pending) return
+    form.reset()
+    if (record) for (const [name, value] of Object.entries(record)) {
+      const input = form.elements.namedItem(name)
+      if (input instanceof HTMLInputElement || input instanceof HTMLSelectElement || input instanceof HTMLTextAreaElement)
+        input.value = value == null ? '' : String(value)
+    }
+    form.querySelector<HTMLElement>('[data-edit-label]')!.hidden = !record
+    form.querySelector<HTMLElement>(topic ? '[data-cancel-topic]' : '[data-cancel-category]')!.hidden = !record
+    form.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = record ? 'Lưu thay đổi' : topic ? 'Tạo đề tài' : 'Thêm lĩnh vực'
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    form.querySelector<HTMLInputElement>('input:not([type="hidden"])')?.focus()
+    return
+  }
+  if (target.dataset.deleteTopic || target.dataset.deleteCategory) {
+    const role = authStore.getState().user?.role
+    const topic = Boolean(target.dataset.deleteTopic)
+    const manager = role === 'HEAD_OF_DEPARTMENT' || role === 'FACULTY_LEADER'
+    if ((!manager && !(topic && role === 'LECTURER')) || target.dataset.pending) return
+    const state = portalStore.getState()
+    const id = Number(topic ? target.dataset.deleteTopic : target.dataset.deleteCategory)
+    const name = topic ? (manager ? state.departmentTopics : state.ownTopics).find(item => item.id === id)?.title
+      : state.categories.find(item => item.id === id)?.name
+    if (!name || !window.confirm(topic ? `Xóa đề tài "${name}" khỏi danh sách đăng ký? Hồ sơ đăng ký hiện có được giữ lại.` : `Xóa lĩnh vực "${name}"? Lĩnh vực đã được sử dụng sẽ không được xóa.`)) return
+    target.dataset.pending = 'true'
+    ;(target as HTMLButtonElement).disabled = true
+    try {
+      await (topic ? topicService.remove(id) : categoryService.remove(id))
+      await portalStore.getState().load()
+      message('Thành công', topic ? 'Đã xóa đề tài khỏi danh sách.' : 'Đã xóa lĩnh vực.')
+    } catch (error) { message('Không thể xóa', apiError(error).message) }
+    finally { delete target.dataset.pending; (target as HTMLButtonElement).disabled = false }
+    return
+  }
+  if (target.dataset.editLecturer || target.dataset.editStudent || target.dataset.cancelEdit) {
+    if (authStore.getState().user?.role !== 'HEAD_OF_DEPARTMENT') return
+    const kind = target.dataset.cancelEdit || (target.dataset.editLecturer ? 'lecturer' : 'student')
+    const form = document.querySelector<HTMLFormElement>(`#${kind}-form`)!
+    if (form.dataset.pending) return
+    form.reset()
+    const id = Number(target.dataset.editLecturer || target.dataset.editStudent)
+    const record = kind === 'lecturer' ? portalStore.getState().lecturerAccounts.find(item => item.lecturerId === id)
+      : portalStore.getState().studentRecords.find(item => item.id === id)
+    if (record && !target.dataset.cancelEdit) {
+      for (const [name, value] of Object.entries({ ...record, id })) {
+        const input = form.elements.namedItem(name)
+        if (input instanceof HTMLInputElement) input.value = value == null ? '' : String(value)
+      }
+    }
+    const editing = Boolean(record && !target.dataset.cancelEdit)
+    form.querySelector<HTMLElement>('[data-edit-label]')!.hidden = !editing
+    form.querySelector<HTMLElement>('[data-cancel-edit]')!.hidden = !editing
+    form.querySelector<HTMLButtonElement>('button[type="submit"]')!.textContent = editing ? 'Lưu thay đổi' : kind === 'lecturer' ? 'Thêm giảng viên' : 'Thêm sinh viên'
+    form.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    form.querySelector<HTMLInputElement>('input:not([type="hidden"])')?.focus()
+    return
+  }
+  if (target.dataset.deleteLecturer || target.dataset.deleteStudent) {
+    if (authStore.getState().user?.role !== 'HEAD_OF_DEPARTMENT' || target.dataset.pending) return
+    const isLecturer = Boolean(target.dataset.deleteLecturer)
+    const id = Number(target.dataset.deleteLecturer || target.dataset.deleteStudent)
+    const name = isLecturer ? portalStore.getState().lecturerAccounts.find(item => item.lecturerId === id)?.username
+      : portalStore.getState().studentRecords.find(item => item.id === id)?.fullName
+    if (!name || !window.confirm(`Xóa ${isLecturer ? 'giảng viên' : 'sinh viên'} "${name}" và tài khoản đăng nhập? Không thể hoàn tác. Tài khoản đã có đề tài hoặc hồ sơ đăng ký sẽ không được xóa.`)) return
+    target.dataset.pending = 'true'
+    ;(target as HTMLButtonElement).disabled = true
+    try {
+      await (isLecturer ? lecturerService.remove(id) : studentService.remove(id))
+      await portalStore.getState().load()
+      message('Thành công', 'Đã xóa tài khoản.')
+    } catch (error) { message('Không thể xóa', apiError(error).message) }
+    finally { delete target.dataset.pending; (target as HTMLButtonElement).disabled = false }
+    return
+  }
   if (target.dataset.action === 'student-template') {
     const button = target as HTMLButtonElement
     button.disabled = true

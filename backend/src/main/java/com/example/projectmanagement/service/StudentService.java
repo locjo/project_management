@@ -291,7 +291,7 @@ public class StudentService {
         User user = student.getUser();
         return new StudentResponse(student.getId(), user.getId(), user.getUsername(), user.getEmail(),
                 student.getStudentCode(), student.getFullName(), student.getDateOfBirth(),
-                student.getClassCode(), student.getAcademicYear());
+                student.getClassCode(), student.getAcademicYear(), student.getLastName(), student.getFirstName());
     }
 
     private static String trimToNull(String value) {

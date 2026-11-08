@@ -6,6 +6,8 @@ import com.example.projectmanagement.controller.ProfileController;
 import com.example.projectmanagement.service.ProfileService;
 import com.example.projectmanagement.controller.LecturerAccountController;
 import com.example.projectmanagement.service.LecturerAccountService;
+import com.example.projectmanagement.controller.AccountManagementController;
+import com.example.projectmanagement.service.AccountManagementService;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -43,10 +45,18 @@ class PortalAuthorizationTest {
         @Bean ProfileController profileController(ProfileService profiles) { return new ProfileController(profiles); }
         @Bean LecturerAccountService lecturerAccounts() { return mock(LecturerAccountService.class); }
         @Bean LecturerAccountController lecturerAccountsController(LecturerAccountService accounts) { return new LecturerAccountController(accounts); }
+        @Bean AccountManagementService management() { return mock(AccountManagementService.class); }
+        @Bean AccountManagementController managementController(AccountManagementService management) { return new AccountManagementController(management); }
     }
 
     @RestController
     static class Endpoints {
+        @PostMapping("/api/topics") String addTopic() { return "OK"; }
+        @PutMapping("/api/topics/{id}") String editTopic() { return "OK"; }
+        @DeleteMapping("/api/topics/{id}") String deleteTopic() { return "OK"; }
+        @PostMapping("/api/categories") String addCategory() { return "OK"; }
+        @PutMapping("/api/categories/{id}") String editCategory() { return "OK"; }
+        @DeleteMapping("/api/categories/{id}") String deleteCategory() { return "OK"; }
         @GetMapping("/api/topics/department") String topics() { return "OK"; }
         @PutMapping("/api/topics/{id}/review") String review() { return "OK"; }
         @PostMapping("/api/graduation-terms") String create() { return "OK"; }
@@ -81,16 +91,51 @@ class PortalAuthorizationTest {
         mvc.perform(get("/api/graduation-terms").with(user("head").roles("HEAD_OF_DEPARTMENT"))).andExpect(status().isOk());
     }
 
-    @Test void onlyFacultyCanCreateLecturersAndInputIsValidated() throws Exception {
+    @Test void onlyHeadCanCreateLecturersAndInputIsValidated() throws Exception {
         String body = "{\"username\":\"teacher\",\"email\":\"teacher@example.test\",\"academicDegree\":\"Master\"}";
         mvc.perform(post("/api/lecturers").contentType("application/json").content(body)).andExpect(status().isForbidden());
-        for (var role : new String[] { "STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT" }) {
+        for (var role : new String[] { "STUDENT", "LECTURER", "FACULTY_LEADER" }) {
             mvc.perform(post("/api/lecturers").with(user("other").roles(role))
                     .contentType("application/json").content(body)).andExpect(status().isForbidden());
         }
-        mvc.perform(post("/api/lecturers").with(user("faculty").roles("FACULTY_LEADER"))
+        mvc.perform(post("/api/lecturers").with(user("head").roles("HEAD_OF_DEPARTMENT"))
                 .contentType("application/json").content(body)).andExpect(status().isCreated());
-        mvc.perform(post("/api/lecturers").with(user("faculty").roles("FACULTY_LEADER"))
+        mvc.perform(post("/api/lecturers").with(user("head").roles("HEAD_OF_DEPARTMENT"))
+                .contentType("application/json").content("{\"username\":\"\",\"email\":\"invalid\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test void topicAndCategoryMutationRolesAreEnforced() throws Exception {
+        for (String role : new String[] { "STUDENT", "LECTURER", "HEAD_OF_DEPARTMENT", "FACULTY_LEADER" }) {
+            boolean topicAllowed = !role.equals("STUDENT");
+            boolean categoryAllowed = role.equals("HEAD_OF_DEPARTMENT") || role.equals("FACULTY_LEADER");
+            mvc.perform(post("/api/topics").with(user("u").roles(role))).andExpect(topicAllowed ? status().isOk() : status().isForbidden());
+            mvc.perform(put("/api/topics/1").with(user("u").roles(role))).andExpect(topicAllowed ? status().isOk() : status().isForbidden());
+            mvc.perform(delete("/api/topics/1").with(user("u").roles(role))).andExpect(topicAllowed ? status().isOk() : status().isForbidden());
+            mvc.perform(post("/api/categories").with(user("u").roles(role))).andExpect(categoryAllowed ? status().isOk() : status().isForbidden());
+            mvc.perform(put("/api/categories/1").with(user("u").roles(role))).andExpect(categoryAllowed ? status().isOk() : status().isForbidden());
+            mvc.perform(delete("/api/categories/1").with(user("u").roles(role))).andExpect(categoryAllowed ? status().isOk() : status().isForbidden());
+        }
+        mvc.perform(delete("/api/topics/1")).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/categories/1")).andExpect(status().isForbidden());
+    }
+
+    @Test void onlyHeadCanManageAccounts() throws Exception {
+        for (var role : new String[] { "STUDENT", "LECTURER", "FACULTY_LEADER", "HEAD_OF_DEPARTMENT" }) {
+            boolean head = role.equals("HEAD_OF_DEPARTMENT");
+            mvc.perform(get("/api/lecturers/accounts").with(user("manager").roles(role)))
+                    .andExpect(head ? status().isOk() : status().isForbidden());
+            for (String resource : new String[] { "lecturers", "students" }) {
+                String body = resource.equals("lecturers") ? "{\"username\":\"teacher\",\"email\":\"t@example.test\"}"
+                    : "{\"username\":\"student\",\"email\":\"s@example.test\",\"studentCode\":\"SV01\",\"lastName\":\"Nguyen\",\"firstName\":\"An\",\"academicYear\":\"2026\"}";
+                mvc.perform(put("/api/" + resource + "/1").with(user("manager").roles(role)).contentType("application/json").content(body))
+                        .andExpect(head ? status().isOk() : status().isForbidden());
+                mvc.perform(delete("/api/" + resource + "/1").with(user("manager").roles(role)))
+                        .andExpect(head ? status().isOk() : status().isForbidden());
+                mvc.perform(delete("/api/" + resource + "/1")).andExpect(status().isForbidden());
+            }
+        }
+        mvc.perform(put("/api/lecturers/1").with(user("head").roles("HEAD_OF_DEPARTMENT"))
                 .contentType("application/json").content("{\"username\":\"\",\"email\":\"invalid\"}"))
                 .andExpect(status().isBadRequest());
     }

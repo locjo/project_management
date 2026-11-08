@@ -78,6 +78,9 @@ Database cũ cần chạy thêm `backend/sql/20260917_registration_term_dates.sq
 Khi cập nhật database cũ, chạy `backend/sql/20260917_topic_review_and_supervision_limit.sql` trước khi khởi động lại backend. Script bỏ cột `max_students`, thêm trạng thái duyệt và version cho đề tài. Đề tài cũ chưa có trạng thái chuyển thành chờ duyệt; hồ sơ sinh viên đã nhận không bị xóa.
 - Đăng ký tự đề xuất chỉ gửi tên đề tài và các ID; backend chưa nhận công nghệ, mô tả giải pháp hay hướng chuyên ngành.
 - Vai trò đúng là `STUDENT`, `LECTURER`, `HEAD_OF_DEPARTMENT`, `FACULTY_LEADER`.
+- Trưởng bộ môn quản lý thêm/sửa/xóa giảng viên và sinh viên. Lãnh đạo khoa xem thống kê/định mức, không tạo hoặc sửa/xóa tài khoản giảng viên. Danh sách quản lý giảng viên dùng `/lecturers/accounts`, độc lập với đợt đồ án.
+- Nút Sửa điền dữ liệu vào form; Lưu thay đổi cập nhật tài khoản, Hủy sửa trả về chế độ thêm. Xóa có xác nhận và bị từ chối nếu tài khoản đã có đề tài/hồ sơ đăng ký để giữ lịch sử đồ án.
+- Trưởng bộ môn và lãnh đạo khoa có mục Quản lý đề tài để thêm, sửa, xóa đề tài của các giảng viên, và quản lý thêm/sửa/xóa lĩnh vực. Giảng viên chỉ quản lý đề tài của chính mình. Tạo/sửa đề tài luôn chuyển về chờ duyệt; không được sửa đề tài đã có đăng ký hoặc thuộc đợt đã đóng. Xóa đề tài ẩn đề tài khỏi danh sách nhưng giữ hồ sơ đăng ký. Lĩnh vực đã được sử dụng không thể xóa; có thể chuyển sang Ngừng sử dụng.
 
 ## Kiểm tra
 

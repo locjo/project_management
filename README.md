@@ -159,6 +159,8 @@ project_management/
 
 ## Khởi động nhanh
 
+Deploy backend trên Render và frontend trên Vercel: xem [DEPLOY.md](DEPLOY.md).
+
 ### 1) Clone dự án
 
 ```bash
@@ -180,6 +182,44 @@ Sau khi khởi động:
 - Redis: localhost:6379
 
 ### 3) Chạy backend thủ công
+
+Backend cần các biến `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `MAIL_USERNAME`,
+`MAIL_PASSWORD`, `REDIS_URL` và `JWT_SECRET` theo `backend/src/main/resources/application.yaml`.
+Nếu gặp lỗi `Could not resolve placeholder 'JWT_SECRET'`, hãy cấu hình khóa JWT
+trong môi trường chạy hoặc file `backend/application-local.properties` (đã được Git bỏ qua).
+File này được đọc khi chạy từ thư mục gốc dự án hoặc thư mục `backend`.
+
+Tham khảo `backend/application-local.properties.example` để bổ sung cấu hình DB,
+Redis và email vào file local; giữ nguyên `JWT_SECRET` đã tạo. `DB_URL` phải có dạng
+`jdbc:postgresql://localhost:5432/TEN_DATABASE` với tên database thực tế.
+Lỗi `'url' must start with "jdbc"` có thể xuất hiện khi thiếu `DB_URL` hoặc dùng URL
+không đúng định dạng JDBC. Điền đúng tài khoản PostgreSQL của máy bạn;
+mật khẩu trong Docker Compose chỉ áp dụng cho database được tạo bởi Compose đó.
+
+Nếu gửi OTP báo `Authentication failed` / `no password specified`, kiểm tra
+`MAIL_USERNAME` và `MAIL_PASSWORD` trong file local hoặc môi trường chạy, không để trống.
+Với Gmail, `MAIL_USERNAME` là địa chỉ gửi email; `MAIL_PASSWORD` là mật khẩu ứng dụng
+được tạo sau khi bật xác minh 2 bước, không phải mật khẩu đăng nhập Gmail:
+https://support.google.com/accounts/answer/185833.
+Khởi động lại backend sau khi cập nhật cấu hình. Không commit mật khẩu vào Git.
+Khi cấu hình email thiếu hoặc SMTP gặp lỗi, API gửi OTP trả HTTP 503;
+OTP mới chỉ được lưu sau khi SMTP chấp nhận email.
+
+Tạo khóa ngẫu nhiên cho máy local bằng PowerShell (chạy từ thư mục gốc dự án,
+chỉ thực hiện khi chưa có file cấu hình local):
+
+```powershell
+$configPath = 'backend/application-local.properties'
+if (!(Test-Path -LiteralPath $configPath)) {
+    $jwtBytes = New-Object byte[] 32
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($jwtBytes) } finally { $rng.Dispose() }
+    $jwtKey = [Convert]::ToBase64String($jwtBytes)
+    Set-Content -LiteralPath $configPath -Value "JWT_SECRET=$jwtKey" -Encoding ascii
+}
+```
+
+Giữ nguyên khóa giữa các lần chạy; thay khóa sẽ làm token cũ không còn hợp lệ.
 
 ```bash
 cd backend

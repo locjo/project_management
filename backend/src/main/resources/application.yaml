@@ -2,6 +2,9 @@ server:
   port: ${PORT:8080}
 
 spring:
+  config:
+    import: optional:file:./backend/application-local.properties,optional:file:./application-local.properties
+
   servlet:
     multipart:
       max-file-size: 5MB
@@ -26,12 +29,15 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
           auth: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
           starttls:
             enable: true
 

@@ -21,6 +21,7 @@ class TopicServiceTest {
     private GraduationTermRepository terms;
     private TopicCategoryService categories;
     private TopicService service;
+    private RegistrationRepository registrations;
     private Lecturer owner;
     private Lecturer head;
     private GraduationTerm term;
@@ -33,7 +34,8 @@ class TopicServiceTest {
         users = mock(UserRepository.class);
         terms = mock(GraduationTermRepository.class);
         categories = mock(TopicCategoryService.class);
-        service = new TopicService(topics, lecturers, users, terms, categories);
+        registrations = mock(RegistrationRepository.class);
+        service = new TopicService(topics, lecturers, users, terms, categories, registrations);
         owner = Lecturer.builder().id(1L)
                 .user(User.builder().id(10L).username("owner").role(UserRole.LECTURER).build()).build();
         head = Lecturer.builder().id(2L)
@@ -141,5 +143,46 @@ class TopicServiceTest {
                 () -> service.review("head", 5L, TopicStatus.REJECTED)).getStatus());
         assertEquals(HttpStatus.BAD_REQUEST, assertThrows(AppException.class,
                 () -> service.review("head", 5L, TopicStatus.PENDING)).getStatus());
+    }
+
+    @Test void managersCanAssignEditAndHideTopicsWithoutLecturerProfile() {
+        for (UserRole role : List.of(UserRole.HEAD_OF_DEPARTMENT, UserRole.FACULTY_LEADER)) {
+            when(users.findByUsernameIgnoreCase("manager")).thenReturn(Optional.of(User.builder().id(30L).role(role).build()));
+            owner.getUser().setActive(true);
+            when(lecturers.findById(1L)).thenReturn(Optional.of(owner));
+            var request = new CreateTopicRequest(3L, 4L, "Managed topic", "Details", 1L);
+            assertEquals("PENDING", service.create("manager", request).status());
+            var topic = topic(TopicStatus.APPROVED);
+            when(topics.findById(5L)).thenReturn(Optional.of(topic));
+            assertEquals("PENDING", service.update("manager", 5L, request).status());
+            service.delete("manager", 5L);
+            assertFalse(topic.isActive());
+        }
+    }
+
+    @Test void lecturerCannotEditAnotherOwnersTopicOrAssignToAnotherLecturer() {
+        var other = topic(TopicStatus.PENDING); other.setLecturer(head);
+        when(topics.findById(5L)).thenReturn(Optional.of(other));
+        assertEquals(HttpStatus.FORBIDDEN, assertThrows(AppException.class,
+                () -> service.update("owner", 5L, new CreateTopicRequest(3L, 4L, "x", null))).getStatus());
+        assertEquals(HttpStatus.FORBIDDEN, assertThrows(AppException.class, () -> service.delete("owner", 5L)).getStatus());
+        assertEquals(HttpStatus.FORBIDDEN, assertThrows(AppException.class,
+                () -> service.create("owner", new CreateTopicRequest(3L, 4L, "x", null, 2L))).getStatus());
+    }
+
+    @Test void registeredInactiveOrClosedTopicsCannotBeEdited() {
+        var topic = topic(TopicStatus.APPROVED);
+        when(topics.findById(5L)).thenReturn(Optional.of(topic));
+        var request = new CreateTopicRequest(3L, 4L, "Changed", null);
+        when(registrations.existsByTopicId(5L)).thenReturn(true);
+        assertEquals(HttpStatus.CONFLICT, assertThrows(AppException.class, () -> service.update("head", 5L, request)).getStatus());
+        assertEquals("Topic", topic.getTitle());
+        when(registrations.existsByTopicId(5L)).thenReturn(false);
+        term.setActive(false);
+        assertThrows(AppException.class, () -> service.update("owner", 5L, request));
+        term.setActive(true); category.setActive(false);
+        assertThrows(AppException.class, () -> service.update("owner", 5L, request));
+        category.setActive(true); topic.setActive(false);
+        assertEquals(HttpStatus.NOT_FOUND, assertThrows(AppException.class, () -> service.update("owner", 5L, request)).getStatus());
     }
 }

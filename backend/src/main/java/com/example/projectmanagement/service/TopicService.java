@@ -22,6 +22,7 @@ import com.example.projectmanagement.repository.GraduationTermRepository;
 import com.example.projectmanagement.repository.LecturerRepository;
 import com.example.projectmanagement.repository.TopicRepository;
 import com.example.projectmanagement.repository.UserRepository;
+import com.example.projectmanagement.repository.RegistrationRepository;
 
 @Service
 public class TopicService {
@@ -30,19 +31,21 @@ public class TopicService {
     private final UserRepository userRepository;
     private final GraduationTermRepository graduationTermRepository;
     private final TopicCategoryService categoryService;
+    private final RegistrationRepository registrations;
 
     public TopicService(TopicRepository topicRepository, LecturerRepository lecturerRepository, UserRepository userRepository,
-                        GraduationTermRepository graduationTermRepository, TopicCategoryService categoryService) {
+                        GraduationTermRepository graduationTermRepository, TopicCategoryService categoryService, RegistrationRepository registrations) {
         this.topicRepository = topicRepository;
         this.lecturerRepository = lecturerRepository;
         this.userRepository = userRepository;
         this.graduationTermRepository = graduationTermRepository;
         this.categoryService = categoryService;
+        this.registrations = registrations;
     }
 
     @Transactional
     public TopicResponse create(String username, CreateTopicRequest request) {
-        Lecturer lecturer = lecturerFor(username);
+        Lecturer lecturer = assignedLecturer(username, request.lecturerId());
         GraduationTerm term = term(request.graduationTermId());
         TopicCategory category = categoryService.getEntity(request.categoryId());
         if (!term.isActive() || !category.isActive()) throw new AppException("Đợt hoặc lĩnh vực không hoạt động", HttpStatus.BAD_REQUEST);
@@ -61,11 +64,17 @@ public class TopicService {
 
     @Transactional
     public TopicResponse update(String username, Long id, CreateTopicRequest request) {
-        Lecturer lecturer = lecturerFor(username);
         Topic topic = topicRepository.findById(id).orElseThrow(() -> new AppException("Không tìm thấy đề tài", HttpStatus.NOT_FOUND));
-        if (!topic.getLecturer().getId().equals(lecturer.getId())) throw new AppException("Bạn không có quyền cập nhật đề tài này", HttpStatus.FORBIDDEN);
-        topic.setGraduationTerm(term(request.graduationTermId()));
-        topic.setCategory(categoryService.getEntity(request.categoryId()));
+        requireManagerOrOwner(username, topic);
+        if (!topic.isActive()) throw new AppException("Không tìm thấy đề tài", HttpStatus.NOT_FOUND);
+        if (registrations.existsByTopicId(id)) throw new AppException("Không thể sửa đề tài đã có hồ sơ đăng ký", HttpStatus.CONFLICT);
+        GraduationTerm targetTerm = term(request.graduationTermId());
+        TopicCategory targetCategory = categoryService.getEntity(request.categoryId());
+        if (!topic.getGraduationTerm().isActive() || !targetTerm.isActive() || !targetCategory.isActive())
+            throw new AppException("Đợt hoặc lĩnh vực không hoạt động", HttpStatus.BAD_REQUEST);
+        topic.setGraduationTerm(targetTerm);
+        topic.setCategory(targetCategory);
+        if (request.lecturerId() != null) topic.setLecturer(assignedLecturer(username, request.lecturerId()));
         topic.setTitle(request.title().trim());
         topic.setDescription(trimToNull(request.description()));
         topic.setStatus(TopicStatus.PENDING);
@@ -74,9 +83,8 @@ public class TopicService {
 
     @Transactional
     public void delete(String username, Long id) {
-        Lecturer lecturer = lecturerFor(username);
         Topic topic = topicRepository.findById(id).orElseThrow(() -> new AppException("Không tìm thấy đề tài", HttpStatus.NOT_FOUND));
-        if (!topic.getLecturer().getId().equals(lecturer.getId())) throw new AppException("Bạn không có quyền xóa đề tài này", HttpStatus.FORBIDDEN);
+        requireManagerOrOwner(username, topic);
         topic.setActive(false);
         topicRepository.save(topic);
     }
@@ -128,6 +136,35 @@ public class TopicService {
         if (user.getRole() != UserRole.HEAD_OF_DEPARTMENT && user.getRole() != UserRole.FACULTY_LEADER) {
             throw new AppException("Chỉ trưởng bộ môn hoặc lãnh đạo khoa được duyệt đề tài", HttpStatus.FORBIDDEN);
         }
+    }
+
+    private boolean manager(User user) {
+        return user.getRole() == UserRole.HEAD_OF_DEPARTMENT || user.getRole() == UserRole.FACULTY_LEADER;
+    }
+
+    private void requireManagerOrOwner(String username, Topic topic) {
+        User user = userRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new AppException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+        if (!manager(user) && (user.getRole() != UserRole.LECTURER || !topic.getLecturer().getUser().getId().equals(user.getId())))
+            throw new AppException("Bạn không có quyền sửa hoặc xóa đề tài này", HttpStatus.FORBIDDEN);
+    }
+
+    private Lecturer assignedLecturer(String username, Long lecturerId) {
+        User user = userRepository.findByUsernameIgnoreCase(username)
+                .orElseThrow(() -> new AppException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+        if (manager(user) && lecturerId != null) {
+            Lecturer lecturer = lecturerRepository.findById(lecturerId)
+                    .orElseThrow(() -> new AppException("Không tìm thấy giảng viên", HttpStatus.NOT_FOUND));
+            if (!lecturer.getUser().isActive() || (lecturer.getUser().getRole() != UserRole.LECTURER && lecturer.getUser().getRole() != UserRole.HEAD_OF_DEPARTMENT))
+                throw new AppException("Giảng viên không hoạt động", HttpStatus.BAD_REQUEST);
+            return lecturer;
+        }
+        if (!manager(user) && user.getRole() != UserRole.LECTURER)
+            throw new AppException("Không có quyền quản lý đề tài", HttpStatus.FORBIDDEN);
+        Lecturer lecturer = lecturerFor(username);
+        if (lecturerId != null && !lecturerId.equals(lecturer.getId()))
+            throw new AppException("Không được gán đề tài cho giảng viên khác", HttpStatus.FORBIDDEN);
+        return lecturer;
     }
 
     private Lecturer lecturerFor(String username) {

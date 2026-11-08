@@ -12,13 +12,19 @@ import com.example.projectmanagement.entity.TopicCategory;
 import com.example.projectmanagement.exception.AppException;
 import com.example.projectmanagement.mapper.TopicCategoryMapper;
 import com.example.projectmanagement.repository.TopicCategoryRepository;
+import com.example.projectmanagement.repository.TopicRepository;
+import com.example.projectmanagement.repository.RegistrationRepository;
 
 @Service
 public class TopicCategoryService {
     private final TopicCategoryRepository repository;
+    private final TopicRepository topics;
+    private final RegistrationRepository registrations;
 
-    public TopicCategoryService(TopicCategoryRepository repository) {
+    public TopicCategoryService(TopicCategoryRepository repository, TopicRepository topics, RegistrationRepository registrations) {
         this.repository = repository;
+        this.topics = topics;
+        this.registrations = registrations;
     }
 
     @Transactional(readOnly = true)
@@ -49,7 +55,11 @@ public class TopicCategoryService {
 
     @Transactional
     public void delete(Long id) {
-        repository.delete(getEntity(id));
+        TopicCategory category = getEntity(id);
+        if (topics.existsByCategoryId(id) || registrations.existsByCategoryId(id))
+            throw new AppException("Không thể xóa lĩnh vực đang được sử dụng bởi đề tài hoặc hồ sơ đăng ký", HttpStatus.CONFLICT);
+        repository.delete(category);
+        repository.flush();
     }
 
     public TopicCategory getEntity(Long id) {

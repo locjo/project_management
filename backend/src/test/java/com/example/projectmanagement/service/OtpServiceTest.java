@@ -10,6 +10,10 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.MailAuthenticationException;
+import org.springframework.mail.MailSendException;
+import org.springframework.http.HttpStatus;
+import com.example.projectmanagement.exception.AppException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -29,7 +33,7 @@ class OtpServiceTest {
         when(redis.opsForValue()).thenReturn(values);
         mail = mock(JavaMailSender.class);
         encoder = mock(PasswordEncoder.class);
-        service = new OtpService(mail, redis, encoder);
+        service = new OtpService(mail, redis, encoder, "sender@example.test", "app-password");
     }
 
     @Test
@@ -43,7 +47,35 @@ class OtpServiceTest {
         var message = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mail).send(message.capture());
         assertArrayEquals(new String[] { email }, message.getValue().getTo());
+        assertEquals("sender@example.test", message.getValue().getFrom());
         assertTrue(message.getValue().getText().contains(code.getValue()));
+    }
+
+    @Test
+    void missingCredentialsRejectSendingBeforeMailOrRedisAccess() {
+        for (String[] credentials : new String[][] {{"", "password"}, {"sender@example.test", " "}}) {
+            var unconfigured = new OtpService(mail, redis, encoder, credentials[0], credentials[1]);
+            var error = assertThrows(AppException.class, () -> unconfigured.sendOtp(email));
+            assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.getStatus());
+        }
+        verifyNoInteractions(mail, redis, encoder);
+    }
+
+    @Test
+    void authenticationFailureDoesNotStoreOrReplaceOtp() {
+        doThrow(new MailAuthenticationException("private server detail")).when(mail).send(any(SimpleMailMessage.class));
+        var error = assertThrows(AppException.class, () -> service.sendOtp(email));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.getStatus());
+        assertFalse(error.getMessage().contains("private server detail"));
+        verifyNoInteractions(redis);
+    }
+
+    @Test
+    void deliveryFailureDoesNotStoreOrReplaceOtp() {
+        doThrow(new MailSendException("connection failed")).when(mail).send(any(SimpleMailMessage.class));
+        var error = assertThrows(AppException.class, () -> service.sendOtp(email));
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, error.getStatus());
+        verifyNoInteractions(redis);
     }
 
     @Test

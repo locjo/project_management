@@ -94,8 +94,8 @@ test('profile edits use the current-user endpoint and render only editable field
   assert.ok(!html.includes('name="username"'))
 })
 
-test('faculty can add a lecturer from the lecturer tab without an existing term', async () => {
-  const h = harness(call => ({ data: { lecturerId: 10, userId: 20, ...call.body } })); h.session('FACULTY_LEADER')
+test('department head can add a lecturer from the lecturer tab without an existing term', async () => {
+  const h = harness(call => ({ data: { lecturerId: 10, userId: 20, ...call.body } })); h.session('HEAD_OF_DEPARTMENT')
   const data = { username: 'teacher', email: 'teacher@example.test', academicDegree: 'Tiến sĩ' }
   await h.load('service/lecturers.ts').lecturerService.create(data)
   assert.equal(h.requests[0].method, 'post')
@@ -103,11 +103,56 @@ test('faculty can add a lecturer from the lecturer tab without an existing term'
   assert.deepEqual(h.requests[0].body, data)
   const portal = h.load('pages/portal.ts')
   assert.ok(portal.renderPortal(h.auth.getState().user).includes('id="lecturer-form"'))
-  const tab = h.load('lib/portal-tabs.ts').getPortalTab('FACULTY_LEADER', 'giang-vien-huong-dan')
+  const tab = h.load('lib/portal-tabs.ts').getPortalTab('HEAD_OF_DEPARTMENT', 'giang-vien-huong-dan')
   assert.ok(tab.sections.includes('create-lecturer'))
-  for (const role of ['STUDENT', 'LECTURER', 'HEAD_OF_DEPARTMENT']) {
+  for (const role of ['STUDENT', 'LECTURER', 'FACULTY_LEADER']) {
     h.session(role)
     assert.ok(!portal.renderPortal(h.auth.getState().user).includes('id="lecturer-form"'))
+  }
+})
+
+test('head loads account management without a term and can call update/delete APIs', async () => {
+  const lecturer = { lecturerId: 3, userId: 7, username: 'Teacher', email: 't@example.test', academicDegree: 'Master' }
+  const student = { id: 4, userId: 8, username: 'student', email: 's@example.test', studentCode: 'SV01', lastName: 'Nguyễn Văn', firstName: 'An', fullName: 'Nguyễn Văn An', academicYear: '2026', classCode: null }
+  const h = harness(call => ({ data: call.url === '/lecturers/accounts' ? [lecturer] : call.url === '/students' ? [student] : [] }))
+  h.session('HEAD_OF_DEPARTMENT')
+  await h.load('stores/portal.ts').portalStore.getState().load()
+  const html = h.load('pages/portal.ts').renderPortal(h.auth.getState().user)
+  for (const attr of ['data-edit-lecturer="3"', 'data-delete-lecturer="3"', 'data-edit-student="4"', 'data-delete-student="4"']) assert.ok(html.includes(attr))
+  const lecturers = h.load('service/lecturers.ts').lecturerService
+  const students = h.load('service/students.ts').studentService
+  await lecturers.update(3, { username: 'Changed', email: 'new@example.test' })
+  await lecturers.remove(3)
+  await students.update(4, { ...student, firstName: 'Bình' })
+  await students.remove(4)
+  assert.deepEqual(h.requests.slice(-4).map(call => [call.method, call.url]), [['put', '/lecturers/3'], ['delete', '/lecturers/3'], ['put', '/students/4'], ['delete', '/students/4']])
+  assert.equal(h.requests.at(-2).body.firstName, 'Bình')
+  h.session('FACULTY_LEADER')
+  const faculty = h.load('pages/portal.ts').renderPortal(h.auth.getState().user)
+  assert.ok(!faculty.includes('data-delete-lecturer'))
+  assert.ok(!faculty.includes('data-delete-student'))
+})
+
+test('managers get topic and category editors with all category states', async () => {
+  for (const role of ['HEAD_OF_DEPARTMENT', 'FACULTY_LEADER']) {
+    const h = harness(call => ({ data: call.url === '/graduation-terms' ? [{ id: 2, name: 'Term', active: true, startDate: '2026-01-01', endDate: '2099-01-01', registerDate: '2099-01-01' }]
+      : call.url === '/categories' ? [{ id: 4, code: 'AI', name: 'AI', description: '<script>', isActive: false }]
+      : call.url === '/topics/department' ? [{ id: 5, title: 'Topic', status: 'PENDING', lecturerName: 'Teacher', categoryName: 'AI', categoryId: 4, lecturerId: 8 }]
+      : call.url === '/lecturers' ? [{ lecturerId: 8, lecturerName: 'Teacher' }] : [] }))
+    h.session(role)
+    await h.load('stores/portal.ts').portalStore.getState().load()
+    const html = h.load('pages/portal.ts').renderPortal(h.auth.getState().user)
+    for (const marker of ['data-edit-topic="5"', 'data-delete-topic="5"', 'data-edit-category="4"', 'data-delete-category="4"', 'id="topic-form"', 'id="category-form"', 'name="lecturerId"']) assert.ok(html.includes(marker))
+    assert.ok(html.includes('&lt;script&gt;'))
+    assert.equal(h.requests.find(call => call.url === '/categories').params.activeOnly, false)
+    assert.equal(h.load('lib/portal-tabs.ts').getPortalTab(role, 'manage-topics').sections.includes('create-topic'), true)
+    const input = { graduationTermId: 2, categoryId: 4, title: 'Changed', lecturerId: 8 }
+    await h.load('service/topics.ts').topicService.update(5, input)
+    await h.load('service/topics.ts').topicService.remove(5)
+    await h.load('service/categories.ts').categoryService.update(4, { code: 'AI', name: 'AI', description: null, isActive: true })
+    await h.load('service/categories.ts').categoryService.remove(4)
+    assert.deepEqual(h.requests.slice(-4).map(call => [call.method, call.url]), [['put', '/topics/5'], ['delete', '/topics/5'], ['put', '/categories/4'], ['delete', '/categories/4']])
+    assert.equal(h.requests.at(-4).body.lecturerId, 8)
   }
 })
 
@@ -348,6 +393,42 @@ test('student defaults to an open registration term while preserving manual sele
   terms[2].active = false
   await store.getState().load()
   assert.equal(store.getState().selectedTermId, 4)
+})
+
+test('faculty statistics show selected-term data and refresh when switching terms', async () => {
+  const h = harness(call => {
+    if (call.url === '/graduation-terms') return { data: [2, 3].map(id => ({ id, active: true, name: `Term ${id}`, startDate: '2026-01-01', endDate: '2099-01-01', registerDate: '2099-01-01' })) }
+    if (call.url === '/dashboard/lecturers') return { data: call.params.graduationTermId === 2 ? [
+      { lecturerId: 1, lecturerName: 'A', studentLimit: 5, approvedStudents: 3, availableSlots: 2, pendingRequests: 1 },
+      { lecturerId: 2, lecturerName: 'B', studentLimit: 5, approvedStudents: 2, availableSlots: 3, pendingRequests: 2 },
+    ] : [] }
+    if (call.url === '/topics/department') return { data: call.params.graduationTermId === 2 ? ['APPROVED', 'PENDING', 'REJECTED'].map((status, id) => ({ id, status, graduationTermId: 2, title: 'Topic', lecturerName: 'A', categoryName: 'Web' })) : [] }
+    return { data: [] }
+  })
+  h.session('FACULTY_LEADER')
+  const store = h.load('stores/portal.ts').portalStore
+  const render = () => h.load('pages/portal.ts').renderPortal(h.auth.getState().user)
+  const stats = () => render().match(/<section class="api-card" id="faculty-statistics">[\s\S]*?<\/section>/)[0]
+  const metric = (label, value) => assert.ok(stats().includes(`${label}</dt><dd class="text-2xl font-bold mt-2">${value}</dd>`))
+  assert.ok(stats().includes('Chưa có đợt đồ án'))
+  await store.getState().load(2)
+  const tab = h.load('lib/portal-tabs.ts').getPortalTab('FACULTY_LEADER', null)
+  assert.equal(tab.path, 'thong-ke-khoa')
+  for (const id of tab.sections) assert.ok(render().includes(`id="${id}"`))
+  metric('Tổng đề tài', 3)
+  for (const label of ['Đề tài đã duyệt', 'Đề tài chờ duyệt', 'Đề tài đã từ chối']) metric(label, 1)
+  metric('Sinh viên đã nhận', 5)
+  metric('Yêu cầu đăng ký chờ duyệt', 3)
+  metric('Tổng chỉ tiêu sinh viên', 10)
+  metric('Chỗ hướng dẫn còn trống', 5)
+  await store.getState().load(3)
+  assert.ok(stats().includes('Term 3'))
+  metric('Tổng đề tài', 0)
+  metric('Sinh viên đã nhận', 0)
+  for (const role of ['STUDENT', 'LECTURER', 'HEAD_OF_DEPARTMENT']) {
+    h.session(role)
+    assert.ok(!render().includes('id="faculty-statistics"'))
+  }
 })
 
 test('faculty sidebar has logout and review links; only faculty has the term creation form', async () => {

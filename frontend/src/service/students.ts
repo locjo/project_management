@@ -2,6 +2,8 @@ import { apiClient, request } from './client'
 import type { CreateStudent, StudentImportResult, StudentRecord } from '../types/api'
 
 export const studentService = {
+  update: (id: number, data: CreateStudent) => request<void>({ method: 'PUT', url: `/students/${id}`, data }),
+  remove: (id: number) => request<void>({ method: 'DELETE', url: `/students/${id}` }),
   list: () => request<StudentRecord[]>({ url: '/students' }),
   create: (data: CreateStudent) => request<StudentRecord>({ method: 'POST', url: '/students', data }),
   importExcel: (file: File, options: { emailDomain?: string; academicYear?: string }) => {

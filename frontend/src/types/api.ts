@@ -26,7 +26,7 @@ export interface Topic {
   categoryId: number; categoryName: string; title: string; description: string | null; active: boolean; createdAt: string
   status: 'PENDING' | 'APPROVED' | 'REJECTED'
 }
-export interface CreateTopic { graduationTermId: number; categoryId: number; title: string; description?: string }
+export interface CreateTopic { graduationTermId: number; categoryId: number; title: string; description?: string; lecturerId?: number }
 export type RegistrationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export interface RegistrationResponse {
   id: number; studentId: number; studentName: string; lecturerId: number; lecturerName: string
@@ -43,6 +43,7 @@ export interface LecturerOption {
   studentLimit: number; availableSlots: number
 }
 export interface StudentRecord {
+  lastName: string | null; firstName: string | null
   id: number; userId: number; username: string; email: string; studentCode: string
   fullName: string; dateOfBirth: string | null; classCode: string | null
   academicYear: string

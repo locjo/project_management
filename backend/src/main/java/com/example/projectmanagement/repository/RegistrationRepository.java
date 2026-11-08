@@ -9,6 +9,10 @@ import com.example.projectmanagement.entity.RegistrationStatus;
 import com.example.projectmanagement.entity.Student;
 
 public interface RegistrationRepository extends JpaRepository<Registration, Long> {
+    boolean existsByCategoryId(Long categoryId);
+    boolean existsByTopicId(Long topicId);
+    boolean existsByStudentId(Long studentId);
+    boolean existsByLecturerId(Long lecturerId);
 
     List<Registration> findByStudentOrderByIdDesc(Student student);
 

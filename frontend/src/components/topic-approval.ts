@@ -18,6 +18,7 @@ export function renderTopicApproval(topics: Topic[], reviewer: boolean): string 
       <h3 class="font-semibold my-3">${esc(topic.title)}</h3>
       <p class="text-secondary text-sm">${esc(topic.lecturerName)} · ${esc(topic.categoryName)}</p>
       <p class="mt-3">${esc(topic.description ?? '')}</p>
+      <div class="flex flex-wrap gap-3 mt-4"><button type="button" class="api-button secondary" data-edit-topic="${topic.id}">Sửa</button><button type="button" class="api-button secondary" data-delete-topic="${topic.id}">Xóa</button></div>
       ${reviewer && topic.status === 'PENDING' ? `<div class="flex flex-wrap gap-3 mt-4">
         <button type="button" class="api-button" data-topic-review="${topic.id}" data-decision="APPROVED">Phê duyệt</button>
         <button type="button" class="api-button secondary" data-topic-review="${topic.id}" data-decision="REJECTED">Từ chối</button>

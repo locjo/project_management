@@ -9,6 +9,8 @@ import com.example.projectmanagement.entity.Topic;
 import com.example.projectmanagement.entity.TopicStatus;
 
 public interface TopicRepository extends JpaRepository<Topic, Long> {
+    boolean existsByCategoryId(Long categoryId);
+    boolean existsByLecturerId(Long lecturerId);
     List<Topic> findByGraduationTermIdAndActiveTrueOrderByCreatedAtDesc(Long graduationTermId);
     List<Topic> findByGraduationTermIdAndCategoryIdAndActiveTrueOrderByCreatedAtDesc(Long graduationTermId, Long categoryId);
     Optional<Topic> findByIdAndActiveTrue(Long id);

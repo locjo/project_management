@@ -2,6 +2,8 @@ import { renderHeader } from '../components/header'
 import { renderSidebar } from '../components/sidebar'
 import { renderLecturerStudents } from '../components/lecturer-students'
 import { renderTopicApproval } from '../components/topic-approval'
+import { renderFacultyStatistics } from '../components/faculty-statistics'
+import { renderCategories } from '../components/category-management'
 import { getPortalTab } from '../lib/portal-tabs'
 import { portalLayouts } from '../lib/portal-layouts'
 import { escapeHtml as esc } from '../lib/html'
@@ -31,12 +33,14 @@ export function renderPortal(user: UserInfo): string {
   if (canReview) {
     sidebar.items = [
       ...(user.role === 'FACULTY_LEADER' ? sidebar.items : [
-        { path: 'giang-vien-huong-dan', icon: 'school', label: 'Định mức giảng viên' },
+        { path: 'giang-vien-huong-dan', icon: 'school', label: 'Quản lý giảng viên' },
       ]),
       ...(user.role === 'HEAD_OF_DEPARTMENT' ? [
         { path: 'sinh-vien', icon: 'group_add', label: 'Quản lý sinh viên' },
+        { path: 'linh-vuc-de-tai', icon: 'category', label: 'Lĩnh vực đề tài' },
       ] : []),
       { path: 'topics-menu', icon: 'lightbulb', label: 'Đề tài', children: [
+        { path: 'manage-topics', icon: 'edit_note', label: 'Quản lý đề tài' },
         { path: 'topic-approved', icon: 'task_alt', label: 'Đã duyệt' },
         { path: 'topic-approval', icon: 'pending_actions', label: 'Đang chờ duyệt' },
         { path: 'topic-rejected', icon: 'cancel', label: 'Đã từ chối' },
@@ -53,7 +57,7 @@ export function renderPortal(user: UserInfo): string {
     ]
     sidebar.activePath = undefined
   }
-  const options = state.categories.map(category => `<option value="${category.id}">${esc(category.name)}</option>`).join('')
+  const options = state.categories.filter(category => category.isActive).map(category => `<option value="${category.id}">${esc(category.name)}</option>`).join('')
   sidebar.footerItems = [
     { path: 'thong-tin-ca-nhan', icon: 'account_circle', label: 'Thông tin cá nhân' },
     ...sidebar.footerItems.filter(item => item.path !== 'thiet-lap-tai-khoan' && item.path !== 'thong-tin-ca-nhan'),
@@ -64,16 +68,18 @@ export function renderPortal(user: UserInfo): string {
   const registrations = state.registrations.filter(item => item.graduationTermId === state.selectedTermId)
   const content = state.loading ? '<div class="api-card" role="status">Đang tải dữ liệu…</div>' : state.error
     ? `<div class="api-card" role="alert"><p class="text-error">${esc(state.error)}</p><button class="api-button mt-4" data-action="reload">Thử lại</button></div>`
-    : `${user.role === 'FACULTY_LEADER' ? `<section class="api-card" id="create-lecturer">
+    : `${user.role === 'HEAD_OF_DEPARTMENT' ? `<section class="api-card" id="create-lecturer">
       <h2>Thêm giảng viên hướng dẫn</h2>
       <form id="lecturer-form" class="api-form api-grid">
+        <input type="hidden" name="id"><p data-edit-label hidden>Đang sửa giảng viên</p>
         <label>Tên đăng nhập<input name="username" required maxlength="50" autocomplete="off"></label>
         <label>Email giảng viên<input name="email" type="email" required maxlength="100" autocomplete="off"></label>
         <label>Học vị<input name="academicDegree" maxlength="100" placeholder="Ví dụ: Thạc sĩ, Tiến sĩ"></label>
         <button class="api-button self-end" type="submit">Thêm giảng viên</button>
+        <button class="api-button secondary" type="button" data-cancel-edit="lecturer" hidden>Hủy sửa</button>
       </form>
       <p class="text-secondary text-sm mt-4">Tài khoản mới có vai trò Giảng viên và được đăng nhập bằng email. Tên đăng nhập cũng là tên hiển thị trong danh sách hiện tại.</p>
-    </section>` : ''}${canReview ? renderTopicApproval(state.departmentTopics, true) : ''}
+    </section><section class="api-card" id="lecturer-accounts"><h2>Quản lý giảng viên</h2><div class="overflow-x-auto"><table class="api-table"><thead><tr><th>Tên đăng nhập</th><th>Email</th><th>Học vị</th><th>Thao tác</th></tr></thead><tbody>${state.lecturerAccounts.map(item => `<tr><td>${esc(item.username)}</td><td>${esc(item.email)}</td><td>${esc(item.academicDegree ?? '')}</td><td><button class="api-button secondary" data-edit-lecturer="${item.lecturerId}">Sửa</button> <button class="api-button secondary" data-delete-lecturer="${item.lecturerId}">Xóa</button></td></tr>`).join('')}</tbody></table>${state.lecturerAccounts.length ? '' : empty('Chưa có giảng viên.')}</div></section>` : ''}${user.role === 'FACULTY_LEADER' ? renderFacultyStatistics(term, state.departmentTopics, state.lecturers) : ''}${canReview ? renderTopicApproval(state.departmentTopics, true) : ''}
     ${user.role === 'LECTURER' ? renderTopicApproval(state.ownTopics, false) : ''}
     ${user.role === 'LECTURER' ? `<section class="api-card" id="topics" data-topic-list><h2>Đề tài đã được duyệt <span class="text-secondary">(${state.topics.length})</span></h2>
       <label class="block my-3">Tìm đề tài<input id="topic-search" data-topic-filter class="api-input" placeholder="Tên đề tài, giảng viên hoặc lĩnh vực"></label>
@@ -89,7 +95,7 @@ export function renderPortal(user: UserInfo): string {
         <fieldset id="custom-fields" disabled hidden class="api-form"><label>Giảng viên<select name="lecturerId" required aria-describedby="lecturer-help"><option value="">Chọn giảng viên</option>${lecturers.map(lecturer => `<option value="${lecturer.lecturerId}" ${lecturer.availableSlots <= 0 ? 'disabled' : ''}>${esc(lecturer.lecturerName)} · ${lecturer.availableSlots > 0 ? `Còn ${lecturer.availableSlots} chỗ` : 'Đã đủ chỉ tiêu'}</option>`).join('')}</select></label>
           <p id="lecturer-help" class="text-secondary text-sm">${lecturers.length === 0 ? 'Chưa có tài khoản giảng viên đang hoạt động. Vui lòng liên hệ khoa để bổ sung.' : lecturers.every(lecturer => lecturer.availableSlots <= 0) ? 'Các giảng viên đã đủ chỉ tiêu trong đợt. Vui lòng liên hệ khoa.' : 'Chọn giảng viên còn chỉ tiêu trong đợt, kể cả giảng viên chưa đăng đề tài gợi ý.'}</p>
           <label>Lĩnh vực<select name="categoryId" required><option value="">Chọn lĩnh vực</option>${options}</select></label>
-          <label>Tên đề tài<input name="title" required maxlength="500"></label>
+          <label>Tên đề tài<input name="title" required maxlength="200"></label>
         </fieldset>
         <label class="api-checkbox"><input type="checkbox" name="commitment" required><span>Tôi xác nhận thông tin đăng ký chính xác.</span></label>
         <button type="submit" class="api-button">Gửi đăng ký</button>
@@ -99,10 +105,11 @@ export function renderPortal(user: UserInfo): string {
       ${registrations.map(item => `<article class="api-topic mt-4"><div class="flex justify-between gap-3"><h3 class="font-semibold">${esc(item.title)}</h3><span class="api-badge">${statuses[item.status]}</span></div>
         <p class="mt-2 text-secondary">${esc(item.studentName)} · ${esc(item.lecturerName)} · ${esc(item.categoryName)}</p>
         </article>`).join('') || empty('Chưa có hồ sơ trong đợt này.')}</section>` : ''}
-    ${user.role === 'LECTURER' && term ? `<section class="api-card" id="create-topic"><h2>Đề xuất đề tài mới</h2><form id="topic-form" class="api-form"><label>Tên đề tài<input name="title" required></label><label>Lĩnh vực<select name="categoryId" required><option value="">Chọn lĩnh vực</option>${options}</select></label><label>Mô tả<textarea name="description" rows="3"></textarea></label><button class="api-button" type="submit">Tạo đề tài</button></form></section>` : ''}
+    ${(user.role === 'LECTURER' || canReview) && term ? `<section class="api-card" id="create-topic"><h2>Thêm / sửa đề tài</h2><p class="text-secondary mt-2">Đề tài sau khi thêm hoặc sửa sẽ chuyển về trạng thái chờ duyệt.</p><form id="topic-form" class="api-form"><input type="hidden" name="id"><input type="hidden" name="graduationTermId" value="${term.id}"><p data-edit-label hidden>Đang sửa đề tài</p>${canReview ? `<label>Giảng viên hướng dẫn<select name="lecturerId" required><option value="">Chọn giảng viên</option>${state.lecturerOptions.map(item => `<option value="${item.lecturerId}">${esc(item.lecturerName)}</option>`).join('')}</select></label>` : ''}<label>Tên đề tài<input name="title" required maxlength="200"></label><label>Lĩnh vực<select name="categoryId" required><option value="">Chọn lĩnh vực</option>${options}</select></label><label>Mô tả<textarea name="description" rows="3" maxlength="1000"></textarea></label><button class="api-button" type="submit">Tạo đề tài</button><button class="api-button secondary" type="button" data-cancel-topic hidden>Hủy sửa</button></form></section>` : ''}
     ${user.role === 'HEAD_OF_DEPARTMENT' ? `<section class="api-card" id="students">
       <div class="flex flex-wrap items-start justify-between gap-3"><h2>Quản lý sinh viên</h2><span class="api-badge">${state.studentRecords.length} sinh viên</span></div>
       <form id="student-form" class="api-form api-grid">
+        <input type="hidden" name="id"><p data-edit-label hidden>Đang sửa sinh viên</p>
         <label>Mã sinh viên<input name="studentCode" maxlength="50" required></label>
         <label>Tên đăng nhập<input name="username" maxlength="50" required></label>
         <label>Email sinh viên<input name="email" type="email" maxlength="100" required></label>
@@ -112,6 +119,7 @@ export function renderPortal(user: UserInfo): string {
         <label>Năm học<input name="academicYear" maxlength="20" placeholder="2026-2027" required></label>
         <label>Ngày sinh<input name="dateOfBirth" type="date"></label>
         <button class="api-button self-end" type="submit">Thêm sinh viên</button>
+        <button class="api-button secondary" type="button" data-cancel-edit="student" hidden>Hủy sửa</button>
       </form>
       <div class="mt-6 border-t border-outline-variant/30 pt-5"><div class="flex flex-wrap items-center justify-between gap-3"><h3 class="font-semibold">Nhập từ file Excel</h3><button class="api-button secondary" type="button" data-action="student-template">Tải file mẫu</button></div>
         <form id="student-import-form" class="api-form api-grid"><label>Chọn file Excel<input type="file" name="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label>
@@ -119,12 +127,11 @@ export function renderPortal(user: UserInfo): string {
           <label>Năm học áp dụng<input name="academicYear" placeholder="2026-2027"></label>
           <button class="api-button justify-self-start" type="submit">Nhập danh sách sinh viên</button></form>
       </div>
-      <div class="overflow-x-auto mt-6"><table class="api-table"><thead><tr><th>Mã SV</th><th>Họ và tên</th><th>Email</th><th>Lớp</th><th>Năm học</th></tr></thead><tbody>
-        ${state.studentRecords.map(student => `<tr><td>${esc(student.studentCode)}</td><td>${esc(student.fullName)}</td><td>${esc(student.email)}</td><td>${esc(student.classCode ?? '—')}</td><td>${esc(student.academicYear)}</td></tr>`).join('')}
+      <div class="overflow-x-auto mt-6"><table class="api-table"><thead><tr><th>Mã SV</th><th>Họ và tên</th><th>Email</th><th>Lớp</th><th>Năm học</th><th>Thao tác</th></tr></thead><tbody>
+        ${state.studentRecords.map(student => `<tr><td>${esc(student.studentCode)}</td><td>${esc(student.fullName)}</td><td>${esc(student.email)}</td><td>${esc(student.classCode ?? '—')}</td><td>${esc(student.academicYear)}</td><td><button class="api-button secondary" data-edit-student="${student.id}">Sửa</button> <button class="api-button secondary" data-delete-student="${student.id}">Xóa</button></td></tr>`).join('')}
       </tbody></table>${state.studentRecords.length ? '' : empty('Chưa có sinh viên. Hãy thêm sinh viên bằng biểu mẫu ở trên.')}</div>
     </section>` : ''}
-    <section class="api-card" id="categories"><h2>Lĩnh vực đề tài</h2><div class="flex flex-wrap gap-2 mt-4">${state.categories.map(category => `<span class="api-badge">${esc(category.name)}</span>`).join('') || empty('Chưa có lĩnh vực.')}</div>
-      ${user.role === 'FACULTY_LEADER' ? '<form id="category-form" class="api-form mt-5"><label>Mã lĩnh vực<input name="code" required></label><label>Tên lĩnh vực<input name="name" required></label><label>Mô tả<textarea name="description"></textarea></label><button class="api-button" type="submit">Thêm lĩnh vực</button></form>' : ''}</section>
+    ${renderCategories(state.categories, canReview)}
     ${user.role === 'FACULTY_LEADER' || user.role === 'HEAD_OF_DEPARTMENT' ? `<section class="api-card" id="lecturers"><h2>Định mức giảng viên</h2><div class="overflow-x-auto"><table class="api-table"><thead><tr><th>Giảng viên</th><th>Học vị</th>${user.role === 'FACULTY_LEADER' ? '<th>Chỉ tiêu</th>' : ''}<th>Đã nhận</th><th>Còn trống</th><th>Chờ duyệt</th></tr></thead><tbody>${state.lecturers.map(item => `<tr><td>${esc(item.lecturerName)}</td><td>${esc(item.academicDegree ?? '')}</td>${user.role === 'FACULTY_LEADER' ? `<td>${item.studentLimit}</td>` : ''}<td>${item.approvedStudents}</td><td>${item.availableSlots}</td><td>${item.pendingRequests}</td></tr>`).join('')}</tbody></table>${state.lecturers.length ? '' : empty('Chưa có thống kê giảng viên.')}</div></section>
     ${user.role === 'FACULTY_LEADER' ? `<section class="api-card" id="terms"><h2>Tạo đợt đồ án</h2><form id="term-form" class="api-form api-grid"><label>Mã đợt<input name="code" required></label><label>Tên đợt<input name="name" required></label><label>Năm học<input name="academicYear" required placeholder="2026-2027"></label><label>Học kỳ<input name="semester" required></label><label>Bắt đầu<input type="datetime-local" name="startDate" required></label><label>Kết thúc<input type="datetime-local" name="endDate" required></label><label>Hạn đăng ký<input type="datetime-local" name="registerDate" required></label><button class="api-button self-end" type="submit">Tạo đợt hoạt động</button></form></section>` : ''}` : ''}`
   return `<div class="live-shell">${renderSidebar(sidebar)}<div class="live-body">

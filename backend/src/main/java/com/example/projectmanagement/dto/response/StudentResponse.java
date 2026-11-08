@@ -11,5 +11,7 @@ public record StudentResponse(
         String fullName,
         LocalDate dateOfBirth,
         String classCode,
-        String academicYear
+        String academicYear,
+        String lastName,
+        String firstName
 ) {}
