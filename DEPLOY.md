@@ -42,13 +42,13 @@ Truy cập `/` có thể bị từ chối do Spring Security; điều này khôn
 
 ## 3. Frontend trên Vercel
 
-1. Sao chép `frontend/vercel.json.example` thành `frontend/vercel.json`.
-2. Thay `https://YOUR-BACKEND.onrender.com` bằng URL backend vừa tạo, giữ `/api/:path*`.
-3. Commit và push file cấu hình này.
-4. Import repository trên Vercel, Root Directory: `frontend`, Framework: **Vite**.
-5. Build Command: `npm run build`; Output Directory: `dist`.
-6. Giữ `VITE_API_BASE_URL=/api` hoặc để trống để dùng mặc định trong code.
-7. Deploy frontend.
+1. Import repository trên Vercel, Root Directory: `frontend`, Framework: **Vite**.
+2. Build Command: `npm run build`; Output Directory: `dist`.
+3. Cấu hình mặc định đã trỏ tới `https://project-management-3-15e9.onrender.com`.
+   Nếu đổi backend, đặt `API_PROXY_TARGET` trong Settings → Environment Variables bằng origin HTTPS
+   mới (không thêm `/api`, không dùng URL frontend Vercel), cho các môi trường cần deploy.
+4. Giữ `VITE_API_BASE_URL=/api` hoặc để trống để dùng mặc định trong code.
+5. Commit/push `frontend/vercel.mjs`, rồi deploy lại. Đổi biến môi trường cũng cần redeploy.
 
 Vercel rewrite chuyển tiếp `/api/...` sang Render. Trình duyệt gọi API trên cùng
 origin với frontend; không cần cấu hình CORS cho luồng này. Cookie refresh token
@@ -56,7 +56,15 @@ hiện không có Domain và dùng SameSite=Lax, phù hợp với cách proxy c�
 `VITE_API_URL` chỉ dùng cho Vite dev/preview, không cấu hình proxy production của Vercel.
 Không đưa DB password, mail password hoặc JWT secret vào biến `VITE_*`.
 
-File `.example` chưa được Vercel áp dụng: phải tạo `vercel.json` với URL thật trước khi deploy. Mẫu cũng có SPA fallback về `/index.html` cho các đường dẫn frontend khi tải lại.
+`frontend/vercel.mjs` là cấu hình Vercel thực tế, đọc `API_PROXY_TARGET` khi deploy
+và chuyển `/api/...` đến backend trước SPA fallback. Khi không đặt biến này, cấu hình
+dùng URL Render mặc định ở trên. Không tạo thêm `vercel.json`
+cùng thư mục; Vercel chỉ dùng một file cấu hình.
+
+Nếu `/api/auth/send-otp` hoặc `/api/auth/quick-login` trả 404 trên domain Vercel,
+kiểm tra Root Directory, `API_PROXY_TARGET` và bản deploy có chứa `vercel.mjs`.
+Chỉ deploy frontend không chạy được backend Java. URL `localhost:8080` trên máy cá nhân
+cũng không thể dùng làm backend cho Vercel.
 
 ## 4. Kiểm tra sau deploy
 
@@ -71,4 +79,5 @@ File `.example` chưa được Vercel áp dụng: phải tạo `vercel.json` v�
 - Render web services và PORT: https://render.com/docs/web-services
 - Giới hạn Render Free, bao gồm SMTP: https://render.com/docs/free
 - Vercel rewrites: https://vercel.com/docs/routing/rewrites
+- Vercel programmatic configuration: https://vercel.com/docs/project-configuration/vercel-ts
 - Vite trên Vercel: https://vercel.com/docs/frameworks/frontend/vite
