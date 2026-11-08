@@ -61,6 +61,12 @@ test('failed quick login does not create a session', async () => {
   assert.equal(h.auth.getState().accessToken, null)
 })
 
+test('quick-login controls are hidden by default and shown only when explicitly enabled', () => {
+  const renderLogin = harness(() => ({ data: null })).load('pages/login.ts').renderLogin
+  assert.ok(!renderLogin().includes('data-quick-role='))
+  assert.ok(renderLogin(true).includes('data-quick-role="STUDENT"'))
+})
+
 test('personal profile loads the authenticated endpoint and escapes user content', async () => {
   const profile = { id: 1, username: '<script>alert(1)</script>', email: 'student@example.test', role: 'STUDENT', active: true, createdAt: null,
     student: { studentCode: 'SV01', fullName: 'Nguyễn An', dateOfBirth: '2004-08-13', classCode: null, academicYear: '2026', phone: null }, lecturer: null }

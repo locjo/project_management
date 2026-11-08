@@ -1,10 +1,11 @@
 import { renderLogo } from '../components/logo'
 
-export function renderLogin(): string {
+export function renderLogin(enableQuickLogin = false): string {
   return `<main class="login-page"><section class="api-card login-card">
     ${renderLogo()}
     <h1 class="text-2xl font-bold mt-6">Đăng nhập hệ thống</h1>
     <p class="text-secondary mt-2">Sử dụng email tài khoản tại trường để nhận mã xác thực.</p>
+    ${enableQuickLogin ? `
     <section class="quick-login" aria-labelledby="quick-login-title">
       <h2 id="quick-login-title">Đăng nhập nhanh</h2>
       <p class="text-secondary text-sm">Chọn vai trò để đăng nhập không cần OTP.</p>
@@ -15,7 +16,7 @@ export function renderLogin(): string {
         <button type="button" class="api-button secondary" data-quick-role="FACULTY_LEADER">Lãnh đạo khoa</button>
       </div>
       <p id="quick-login-status" class="text-secondary text-sm" role="status"></p>
-    </section>
+    </section>` : ''}
     <form id="email-form" class="api-form mt-6">
       <label>Email<input type="email" name="email" autocomplete="email" placeholder="ten@humg.edu.vn" required></label>
       <button type="submit" class="api-button">Gửi mã OTP</button>

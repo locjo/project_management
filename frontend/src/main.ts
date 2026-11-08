@@ -26,7 +26,7 @@ function render() {
   document.body.className = role ? `screen-${role} connected` : 'screen-otp connected'
   document.title = 'Quản lý đồ án tốt nghiệp HUMG'
   if (!user || !role) {
-    app.innerHTML = renderLogin()
+    app.innerHTML = renderLogin(import.meta.env.DEV && import.meta.env.VITE_ENABLE_QUICK_LOGIN === 'true')
     setupLogin()
   } else {
     app.innerHTML = renderPortal(user)

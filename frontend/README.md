@@ -26,9 +26,12 @@ Vite đọc URL backend từ `VITE_API_URL`. Tạo `frontend/.env.local` (đã �
 ```env
 VITE_API_BASE_URL=/api
 VITE_API_URL=http://localhost:8080
+VITE_ENABLE_QUICK_LOGIN=true
 ```
 
 Vite dev và preview proxy `/api` đến `VITE_API_URL`, gửi kèm cookie refresh token. Trình duyệt tiếp tục gọi API cùng origin qua `/api`, tránh yêu cầu CORS và giữ tương thích cookie. Khi triển khai, sao chép `vercel.json.example` thành `vercel.json` và thay URL backend placeholder. Mẫu cũng cấu hình SPA fallback về `/index.html` khi tải lại đường dẫn trực tiếp.
+
+Đăng nhập nhanh chỉ hiện khi đặt `VITE_ENABLE_QUICK_LOGIN=true` (dùng cho local/test). Mặc định production không hiện các nút này; backend cũng phải tự xác thực trạng thái bật/tắt và nên để `QUICK_LOGIN_ENABLED=false` trên môi trường công khai.
 
 ## Cấu trúc
 
