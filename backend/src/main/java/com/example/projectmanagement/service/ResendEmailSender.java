@@ -33,8 +33,8 @@ public class ResendEmailSender {
 
     @Autowired
     public ResendEmailSender(ObjectMapper objectMapper,
-                             @Value("${resend.api-key:}") String apiKey,
-                             @Value("${resend.from:}") String from) {
+            @Value("${RESEND_API_KEY:}") String apiKey,
+            @Value("${MAIL_FROM:}") String from) {
         this(HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
                 objectMapper, API_URI, apiKey, from);
     }
@@ -58,7 +58,7 @@ public class ResendEmailSender {
         try {
             body = objectMapper.writeValueAsString(Map.of(
                     "from", from,
-                    "to", new String[] {to},
+                    "to", new String[] { to },
                     "subject", "Mã OTP đăng nhập",
                     "text", "Mã OTP của bạn là: " + code
                             + "\nMã này sẽ hết hạn sau 3 phút."
