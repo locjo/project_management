@@ -10,7 +10,8 @@ PostgreSQL và Redis vẫn cần chạy (Redis phục vụ giới hạn request 
 Khởi động lại backend và tải lại frontend để dùng. Không cần bật profile riêng.
 Cấu hình `app.auth.quick-login-enabled` mặc định là `false`; đặt
 `QUICK_LOGIN_ENABLED=true` để bật API đăng nhập nhanh.
-Khi triển khai bản demo, đặt `QUICK_LOGIN_ENABLED=true` trên Render và
-`VITE_ENABLE_QUICK_LOGIN=true` trên Vercel, sau đó redeploy cả hai dịch vụ.
-Nếu đây là hệ thống có dữ liệu thật, đặt hai biến trên thành `false` vì bất kỳ
+Khi triển khai bản demo, đặt `QUICK_LOGIN_ENABLED=true` trên Render rồi redeploy.
+Bốn nút hiện theo mặc định trên Vercel; đặt `VITE_ENABLE_QUICK_LOGIN=false`
+và redeploy Vercel để ẩn chúng. Nếu đây là hệ thống có dữ liệu thật, đặt hai biến
+trên thành `false` vì bất kỳ
 người truy cập nào cũng có thể đăng nhập vào cả bốn vai trò khi tính năng được bật.

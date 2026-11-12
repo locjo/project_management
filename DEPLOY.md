@@ -49,8 +49,9 @@ Truy cập `/` có thể bị từ chối do Spring Security; điều này khôn
 3. Cấu hình mặc định đã trỏ tới `https://project-management-3-15e9.onrender.com`.
    Nếu đổi backend, sửa `destination` trong `frontend/vercel.json`, giữ `/api/:path*` ở cuối.
 4. Giữ `VITE_API_BASE_URL=/api` hoặc để trống để dùng mặc định trong code.
-   Đặt `VITE_ENABLE_QUICK_LOGIN=true` trong Environment Variables của Vercel rồi redeploy
-   để hiển thị 4 nút đăng nhập nhanh. Render cũng phải có `QUICK_LOGIN_ENABLED=true`.
+   Bốn nút đăng nhập nhanh hiện theo mặc định. Nếu cần ẩn, đặt
+   `VITE_ENABLE_QUICK_LOGIN=false` trong Environment Variables của Vercel rồi redeploy.
+   Render phải có `QUICK_LOGIN_ENABLED=true` để các nút đăng nhập thành công.
 5. Commit/push `frontend/vercel.json` và việc xóa `frontend/vercel.mjs`, rồi deploy commit mới.
 
 Vercel rewrite chuyển tiếp `/api/...` sang Render. Trình duyệt gọi API trên cùng
