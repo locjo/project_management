@@ -78,7 +78,6 @@ cũng không thể dùng làm backend cho Vercel.
 
 - Render Docker: https://render.com/docs/docker
 - Render web services và PORT: https://render.com/docs/web-services
-- Giới hạn Render Free, bao gồm SMTP: https://render.com/docs/free
 - Vercel rewrites: https://vercel.com/docs/routing/rewrites
 - Vercel programmatic configuration: https://vercel.com/docs/project-configuration/vercel-ts
 - Vite trên Vercel: https://vercel.com/docs/frameworks/frontend/vite

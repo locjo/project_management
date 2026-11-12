@@ -35,9 +35,9 @@ app:
   auth:
     quick-login-enabled: ${QUICK_LOGIN_ENABLED:false}
 
-resend:
-  api-key: ${RESEND_API_KEY:}
-  from: ${RESEND_FROM:}
+  resend:
+    api-key: ${RESEND_API_KEY:}
+    from: ${RESEND_FROM:}
 
 jwt:
   secret: ${JWT_SECRET}
