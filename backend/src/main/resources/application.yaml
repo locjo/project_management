@@ -26,21 +26,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
-  mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          connectiontimeout: 5000
-          timeout: 5000
-          writetimeout: 5000
-          starttls:
-            enable: true
-
   data:
     redis:
       url: ${REDIS_URL}
@@ -49,6 +34,10 @@ spring:
 app:
   auth:
     quick-login-enabled: ${QUICK_LOGIN_ENABLED:false}
+
+resend:
+  api-key: ${RESEND_API_KEY:}
+  from: ${RESEND_FROM:}
 
 jwt:
   secret: ${JWT_SECRET}

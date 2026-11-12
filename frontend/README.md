@@ -4,7 +4,7 @@ TypeScript, Vite, Tailwind CSS, Axios và Zustand vanilla. Giao diện mặc đ�
 
 ## Chạy ứng dụng
 
-1. Khởi động PostgreSQL, Redis và Spring Boot backend; cấu hình SMTP để gửi OTP.
+1. Khởi động PostgreSQL, Redis và Spring Boot backend; cấu hình Resend trên backend để gửi OTP.
 2. Trong `frontend`, chạy `npm install` và `npm run dev`.
 3. Mở địa chỉ Vite hiển thị, nhập email của tài khoản đã tồn tại trong backend, nhận OTP và đăng nhập. OTP có hiệu lực 3 phút theo `OtpService`.
 

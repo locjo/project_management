@@ -5,9 +5,9 @@
 Tạo PostgreSQL và Redis/Render Key Value, ghi lại host, port và thông tin đăng nhập.
 Backend dùng Redis cho OTP và giới hạn yêu cầu, nên cần Redis hoạt động.
 
-Ứng dụng hiện gửi OTP qua Gmail SMTP cổng 587. Render Free chặn outbound SMTP
-cổng 25, 465, 587. Muốn sử dụng đăng nhập OTP, cần chuyển code gửi email sang
-API HTTPS của nhà cung cấp email hoặc dùng dịch vụ Render trả phí hỗ trợ cổng 587.
+Backend gửi OTP qua Resend API HTTPS. Tạo API key trong Resend, thêm và xác minh
+domain gửi email. Địa chỉ `RESEND_FROM` phải thuộc domain đã xác minh để gửi OTP
+đến người dùng thực. Domain thử nghiệm `resend.dev` chỉ dành cho kiểm tra giới hạn.
 Không bật quick login trên bản deploy công khai.
 
 ## 2. Backend trên Render
@@ -24,8 +24,8 @@ Không bật quick login trên bản deploy công khai.
 | `DB_USERNAME` | Username của PostgreSQL |
 | `DB_PASSWORD` | Password của PostgreSQL |
 | `REDIS_URL` | URL kết nối Redis; dùng `rediss://` nếu dịch vụ yêu cầu TLS |
-| `MAIL_USERNAME` | Địa chỉ Gmail gửi OTP |
-| `MAIL_PASSWORD` | Mật khẩu ứng dụng Gmail |
+| `RESEND_API_KEY` | API key của Resend (`re_...`) |
+| `RESEND_FROM` | Ví dụ `OTP <otp@domain-da-xac-minh.com>` |
 | `JWT_SECRET` | Khóa ngẫu nhiên riêng cho production, tối thiểu 32 byte |
 | `QUICK_LOGIN_ENABLED` | `false` |
 
@@ -35,7 +35,8 @@ Nếu nhà cung cấp yêu cầu SSL, thêm `?sslmode=require` vào URL JDBC.
 
 `server.port` đã đọc `${PORT:8080}`, phù hợp với cổng Render cấp.
 File `application-local.properties` không được commit hoặc đưa vào Docker image.
-Các biến môi trường trên Render thay thế cấu hình local.
+Các biến môi trường trên Render thay thế cấu hình local. Đặt `RESEND_API_KEY`
+và `RESEND_FROM` trên **Render backend**, không đặt trên Vercel frontend.
 
 Deploy backend, kiểm tra log khởi động thành công, rồi sao chép URL HTTPS Render cấp.
 Truy cập `/` có thể bị từ chối do Spring Security; điều này không tự chứng minh backend bị lỗi.
@@ -53,7 +54,7 @@ Vercel rewrite chuyển tiếp `/api/...` sang Render. Trình duyệt gọi API 
 origin với frontend; không cần cấu hình CORS cho luồng này. Cookie refresh token
 hiện không có Domain và dùng SameSite=Lax, phù hợp với cách proxy cùng origin.
 `VITE_API_URL` chỉ dùng cho Vite dev/preview, không cấu hình proxy production của Vercel.
-Không đưa DB password, mail password hoặc JWT secret vào biến `VITE_*`.
+Không đưa DB password, Resend API key hoặc JWT secret vào biến `VITE_*`.
 
 `frontend/vercel.json` chuyển `/api/...` đến Render trước SPA fallback.
 Không đặt thêm `vercel.mjs` cùng thư mục. `API_PROXY_TARGET` không còn dùng trên Vercel.
@@ -67,7 +68,8 @@ cũng không thể dùng làm backend cho Vercel.
 
 ## 4. Kiểm tra sau deploy
 
-- Gửi OTP, nhận email và đăng nhập.
+- Gửi OTP, kiểm tra email (cả thư mục spam) và đăng nhập. Nếu API trả 503,
+  kiểm tra `RESEND_API_KEY`, `RESEND_FROM`, trạng thái xác minh domain và log Resend.
 - Trong Network, kiểm tra request tới `https://TEN-FRONTEND.vercel.app/api/...`.
 - Kiểm tra cookie refresh token và chức năng refresh/đăng xuất.
 - Đăng nhập lãnh đạo khoa, mở Thống kê khoa và đổi đợt đồ án.
@@ -80,3 +82,5 @@ cũng không thể dùng làm backend cho Vercel.
 - Vercel rewrites: https://vercel.com/docs/routing/rewrites
 - Vercel programmatic configuration: https://vercel.com/docs/project-configuration/vercel-ts
 - Vite trên Vercel: https://vercel.com/docs/frameworks/frontend/vite
+- Resend API gửi email: https://resend.com/docs/api-reference/emails/send-email
+- Resend xác minh domain: https://resend.com/docs/dashboard/domains/introduction

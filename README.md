@@ -183,8 +183,8 @@ Sau khi khởi động:
 
 ### 3) Chạy backend thủ công
 
-Backend cần các biến `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `MAIL_USERNAME`,
-`MAIL_PASSWORD`, `REDIS_URL` và `JWT_SECRET` theo `backend/src/main/resources/application.yaml`.
+Backend cần các biến `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `RESEND_API_KEY`,
+`RESEND_FROM`, `REDIS_URL` và `JWT_SECRET` theo `backend/src/main/resources/application.yaml`.
 Nếu gặp lỗi `Could not resolve placeholder 'JWT_SECRET'`, hãy cấu hình khóa JWT
 trong môi trường chạy hoặc file `backend/application-local.properties` (đã được Git bỏ qua).
 File này được đọc khi chạy từ thư mục gốc dự án hoặc thư mục `backend`.
@@ -196,14 +196,12 @@ Lỗi `'url' must start with "jdbc"` có thể xuất hiện khi thiếu `DB_URL
 không đúng định dạng JDBC. Điền đúng tài khoản PostgreSQL của máy bạn;
 mật khẩu trong Docker Compose chỉ áp dụng cho database được tạo bởi Compose đó.
 
-Nếu gửi OTP báo `Authentication failed` / `no password specified`, kiểm tra
-`MAIL_USERNAME` và `MAIL_PASSWORD` trong file local hoặc môi trường chạy, không để trống.
-Với Gmail, `MAIL_USERNAME` là địa chỉ gửi email; `MAIL_PASSWORD` là mật khẩu ứng dụng
-được tạo sau khi bật xác minh 2 bước, không phải mật khẩu đăng nhập Gmail:
-https://support.google.com/accounts/answer/185833.
-Khởi động lại backend sau khi cập nhật cấu hình. Không commit mật khẩu vào Git.
-Khi cấu hình email thiếu hoặc SMTP gặp lỗi, API gửi OTP trả HTTP 503;
-OTP mới chỉ được lưu sau khi SMTP chấp nhận email.
+Để gửi OTP, tạo API key và xác minh domain gửi email trong Resend. Đặt
+`RESEND_FROM` là địa chỉ thuộc domain đó, ví dụ `OTP <otp@example.com>`.
+Đặt API key trên backend Render, không đưa vào biến `VITE_*` của frontend.
+Khởi động lại backend sau khi cập nhật cấu hình. Không commit API key hoặc mật khẩu vào Git.
+Khi cấu hình thiếu hoặc Resend từ chối yêu cầu, API gửi OTP trả HTTP 503;
+OTP mới chỉ được lưu sau khi Resend chấp nhận yêu cầu gửi email.
 
 Tạo khóa ngẫu nhiên cho máy local bằng PowerShell (chạy từ thư mục gốc dự án,
 chỉ thực hiện khi chưa có file cấu hình local):
