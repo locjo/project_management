@@ -8,5 +8,9 @@ Database cần có tài khoản tương ứng và hồ sơ sinh viên/giảng vi
 PostgreSQL và Redis vẫn cần chạy (Redis phục vụ giới hạn request xác thực).
 
 Khởi động lại backend và tải lại frontend để dùng. Không cần bật profile riêng.
-Cấu hình `app.auth.quick-login-enabled` đang bật cho môi trường phát triển này.
-Khi triển khai, đặt biến môi trường `QUICK_LOGIN_ENABLED=false` để chặn đăng nhập nhanh.
+Cấu hình `app.auth.quick-login-enabled` mặc định là `false`; đặt
+`QUICK_LOGIN_ENABLED=true` để bật API đăng nhập nhanh.
+Khi triển khai bản demo, đặt `QUICK_LOGIN_ENABLED=true` trên Render và
+`VITE_ENABLE_QUICK_LOGIN=true` trên Vercel, sau đó redeploy cả hai dịch vụ.
+Nếu đây là hệ thống có dữ liệu thật, đặt hai biến trên thành `false` vì bất kỳ
+người truy cập nào cũng có thể đăng nhập vào cả bốn vai trò khi tính năng được bật.

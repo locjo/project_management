@@ -8,7 +8,8 @@ Backend dùng Redis cho OTP và giới hạn yêu cầu, nên cần Redis hoạt
 Backend gửi OTP qua Resend API HTTPS. Tạo API key trong Resend, thêm và xác minh
 domain gửi email. Địa chỉ `RESEND_FROM` phải thuộc domain đã xác minh để gửi OTP
 đến người dùng thực. Domain thử nghiệm `resend.dev` chỉ dành cho kiểm tra giới hạn.
-Không bật quick login trên bản deploy công khai.
+Đăng nhập nhanh cấp quyền trực tiếp cho tài khoản đầu tiên đang hoạt động của từng vai trò.
+Chỉ bật khi đây là bản demo và mọi dữ liệu trong hệ thống đều được phép truy cập công khai.
 
 ## 2. Backend trên Render
 
@@ -27,7 +28,7 @@ Không bật quick login trên bản deploy công khai.
 | `RESEND_API_KEY` | API key của Resend (`re_...`) |
 | `RESEND_FROM` | Ví dụ `OTP <otp@domain-da-xac-minh.com>` |
 | `JWT_SECRET` | Khóa ngẫu nhiên riêng cho production, tối thiểu 32 byte |
-| `QUICK_LOGIN_ENABLED` | `false` |
+| `QUICK_LOGIN_ENABLED` | `true` để bật 4 nút đăng nhập nhanh cho bản demo; `false` để tắt API |
 
 Không dán nguyên URL dạng `postgresql://user:password@host/database` vào `DB_URL`.
 Tách username/password sang hai biến tương ứng và dùng URL JDBC như bảng trên.
@@ -48,6 +49,8 @@ Truy cập `/` có thể bị từ chối do Spring Security; điều này khôn
 3. Cấu hình mặc định đã trỏ tới `https://project-management-3-15e9.onrender.com`.
    Nếu đổi backend, sửa `destination` trong `frontend/vercel.json`, giữ `/api/:path*` ở cuối.
 4. Giữ `VITE_API_BASE_URL=/api` hoặc để trống để dùng mặc định trong code.
+   Đặt `VITE_ENABLE_QUICK_LOGIN=true` trong Environment Variables của Vercel rồi redeploy
+   để hiển thị 4 nút đăng nhập nhanh. Render cũng phải có `QUICK_LOGIN_ENABLED=true`.
 5. Commit/push `frontend/vercel.json` và việc xóa `frontend/vercel.mjs`, rồi deploy commit mới.
 
 Vercel rewrite chuyển tiếp `/api/...` sang Render. Trình duyệt gọi API trên cùng
