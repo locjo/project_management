@@ -41,6 +41,8 @@ và `RESEND_FROM` trên **Render backend**, không đặt trên Vercel frontend.
 
 Deploy backend, kiểm tra log khởi động thành công, rồi sao chép URL HTTPS Render cấp.
 Truy cập `/` có thể bị từ chối do Spring Security; điều này không tự chứng minh backend bị lỗi.
+Nếu cần dữ liệu demo cho bốn vai trò, nạp `backend/sql/seed_demo.sql` vào đúng
+PostgreSQL mà Render đang dùng sau khi backend đã tạo schema; xem README.
 
 ## 3. Frontend trên Vercel
 

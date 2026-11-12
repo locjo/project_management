@@ -161,6 +161,28 @@ project_management/
 
 Deploy backend trên Render và frontend trên Vercel: xem [DEPLOY.md](DEPLOY.md).
 
+### Dữ liệu demo
+
+Sau khi backend chạy lần đầu và tạo schema PostgreSQL, có thể nạp
+[`backend/sql/seed_demo.sql`](backend/sql/seed_demo.sql) bằng `psql`:
+
+```bash
+psql -h HOST -U USER -d DATABASE -v ON_ERROR_STOP=1 -f backend/sql/seed_demo.sql
+```
+
+Script tạo 9 tài khoản demo thuộc đủ 4 vai trò, 5 hồ sơ sinh viên, 3 hồ sơ
+giảng viên, 6 lĩnh vực đề tài, 2 đợt đồ án, 5 đề tài và 5 đăng ký. Đợt
+`DEMO_CURRENT` mở đăng ký trong 30 ngày tính từ lần nạp đầu; nạp lại không
+đổi ngày hoặc tạo bản ghi trùng. Bảng `refresh_tokens` chỉ được ghi khi đăng
+nhập nên không có dữ liệu seed. Email `example.com` chỉ là địa chỉ mẫu; để
+thử OTP thật, cập nhật email tài khoản sang địa chỉ nhận thư của bạn.
+
+Chạy script trên database mà Render sử dụng nếu muốn dữ liệu xuất hiện trên
+Vercel. Bốn nút đăng nhập nhanh chọn tài khoản đang hoạt động có ID nhỏ nhất
+theo vai trò và có hồ sơ tương ứng (đối với Sinh viên, Giảng viên, Trưởng bộ môn);
+nếu database đã có tài khoản hợp lệ khác, nút có thể chọn tài khoản đó.
+Chỉ bật `QUICK_LOGIN_ENABLED=true` trên database demo công khai.
+
 ### 1) Clone dự án
 
 ```bash

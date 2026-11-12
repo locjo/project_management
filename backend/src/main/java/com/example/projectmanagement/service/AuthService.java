@@ -3,6 +3,7 @@ package com.example.projectmanagement.service;
 import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Value;
 import com.example.projectmanagement.entity.UserRole;
+import org.springframework.data.domain.PageRequest;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -85,9 +86,13 @@ public class AuthService {
         if (role == null) {
             throw new AuthServiceException("Vui lòng chọn vai trò đăng nhập", HttpStatus.BAD_REQUEST);
         }
-        User user = userRepository.findFirstByRoleAndIsActiveTrueOrderByIdAsc(role)
+        User user = (switch (role) {
+            case STUDENT -> userRepository.findActiveStudentsWithProfile(role, PageRequest.of(0, 1)).stream().findFirst();
+            case LECTURER, HEAD_OF_DEPARTMENT -> userRepository.findActiveLecturersWithProfile(role, PageRequest.of(0, 1)).stream().findFirst();
+            case FACULTY_LEADER -> userRepository.findFirstByRoleAndIsActiveTrueOrderByIdAsc(role);
+        })
                 .orElseThrow(() -> new AuthServiceException(
-                        "Chưa có tài khoản đang hoạt động cho vai trò " + role.name(), HttpStatus.NOT_FOUND));
+                        "Chưa có tài khoản đang hoạt động với hồ sơ phù hợp cho vai trò " + role.name(), HttpStatus.NOT_FOUND));
         return createSession(user, jwtTokenProvider.generateToken(user.getUsername(), user.getId()));
     }
 
